@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+  --color-dark-bg: #1a1a2e;
+  --color-accent: #e94560;
+  --color-secondary: #0f3460;
+  --color-purple: #533483;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  background-color: var(--color-dark-bg);
+  color: #e0e0e0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
