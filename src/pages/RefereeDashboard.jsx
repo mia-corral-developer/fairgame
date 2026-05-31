@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import {
   getNextMatchTeams,
   createMatch,
@@ -16,12 +16,14 @@ import {
   createTournamentMatch,
   finishGroupMatch,
   finishKnockoutMatch,
+  shuffleGroupMatches,
 } from '../services/sessionService'
 import Button from '../components/common/Button'
 import Input from '../components/common/Input'
 
 export default function RefereeDashboard() {
   const navigate = useNavigate()
+  const location = useLocation()
 
   const [sessionCode, setSessionCode] = useState('')
   const [refereeCode, setRefereeCode] = useState('')
@@ -34,8 +36,16 @@ export default function RefereeDashboard() {
   const [loading, setLoading] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState('')
+  const [hasPrefilledSession, setHasPrefilledSession] = useState(false)
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const sessionFromUrl = params.get('session')
+    if (sessionFromUrl) {
+      setSessionCode(sessionFromUrl.toUpperCase())
+      setHasPrefilledSession(true)
+    }
+
     const stored = sessionStorage.getItem('referee_session')
     if (stored) {
       try {
@@ -239,8 +249,25 @@ export default function RefereeDashboard() {
     }
   }
 
+  async function handleShuffleFixture() {
+    if (!verifiedSession?.sessionId || processing) return
+    setProcessing(true)
+    setError('')
+
+    try {
+      await shuffleGroupMatches(verifiedSession.sessionId)
+    } catch (err) {
+      setError(err.message || 'Error al sortear fixture')
+      console.error(err)
+    } finally {
+      setProcessing(false)
+    }
+  }
+
   function getTeamName(teamId) {
-    return teams.find((t) => t.id === teamId)?.name || 'Equipo'
+    const team = teams.find((t) => t.id === teamId)
+    if (!team) return 'Equipo'
+    return team.flag ? `${team.flag} ${team.name}` : team.name
   }
 
   const isTournament = sessionData?.mode === 'round-robin'
@@ -290,13 +317,21 @@ export default function RefereeDashboard() {
         </button>
         <h2 className="text-2xl font-bold text-white">🔒 Panel de árbitro</h2>
         <p className="text-sm text-gray-400">Este panel es exclusivo para el organizador del campeonato.</p>
-        <Input
-          label="Código de sesión"
-          value={sessionCode}
-          onChange={(e) => setSessionCode(e.target.value.toUpperCase())}
-          placeholder="Ej: ABC123"
-          maxLength={6}
-        />
+        {hasPrefilledSession && sessionCode && (
+          <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-center">
+            <p className="text-xs text-gray-500">Sesión</p>
+            <p className="text-lg font-bold text-white tracking-widest">{sessionCode}</p>
+          </div>
+        )}
+        {!hasPrefilledSession && (
+          <Input
+            label="Código de sesión"
+            value={sessionCode}
+            onChange={(e) => setSessionCode(e.target.value.toUpperCase())}
+            placeholder="Ej: ABC123"
+            maxLength={6}
+          />
+        )}
         <Input
           label="Código de árbitro"
           value={refereeCode}
@@ -456,6 +491,12 @@ export default function RefereeDashboard() {
                 <span className="font-bold text-[#e94560]">{getTeamName(bracket.final.teamB)}</span>
               </div>
             </div>
+          )}
+
+          {isTournament && phase === 'group' && !match && groupMatches.filter((m) => m.status === 'finished').length === 0 && (
+            <Button onClick={handleShuffleFixture} disabled={processing} variant="secondary">
+              {processing ? 'Sorteando...' : '🎲 Sortear fixture'}
+            </Button>
           )}
 
           {teams.length >= 2 && phase !== 'completed' && (

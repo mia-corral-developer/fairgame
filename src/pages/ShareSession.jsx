@@ -46,6 +46,20 @@ export default function ShareSession() {
         <p className="text-sm text-gray-300">
           <span className="font-semibold">Modo:</span> {modeLabel}
         </p>
+        {mode === 'round-robin' && (
+          <>
+            <p className="mt-1 text-sm text-gray-400">
+              <span className="font-semibold">Equipos:</span> 4 equipos · round-robin
+            </p>
+            <p className="text-sm text-gray-400">
+              <span className="font-semibold">Puntos para ganar:</span>{' '}
+              <span className="text-[#e94560] font-bold">30 puntos</span> (fijos)
+            </p>
+            <p className="text-sm text-gray-400">
+              <span className="font-semibold">Fase final:</span> Semifinales (1° vs 4°, 2° vs 3°) + Final
+            </p>
+          </>
+        )}
       </div>
 
       {refereeCode && (
@@ -68,7 +82,7 @@ export default function ShareSession() {
         <Button variant="outline" onClick={() => navigate('/create-team')}>
           Registrar mi equipo
         </Button>
-        <Button variant="outline" onClick={() => navigate('/referee')}>
+        <Button variant="outline" onClick={() => navigate(`/referee?session=${code || ''}`)}>
           Ir al panel de árbitro
         </Button>
       </div>

@@ -22,6 +22,9 @@ export default function SpectatorView() {
 
   const [selectedTeam, setSelectedTeam] = useState(null)
 
+  const isTournament = session?.mode === 'round-robin'
+  const phase = session?.phase || 'group'
+
   // Load session and teams
   useEffect(() => {
     let unsubSession = () => {}
@@ -88,7 +91,9 @@ export default function SpectatorView() {
   }
 
   function getTeamName(teamId) {
-    return teams.find((t) => t.id === teamId)?.name || 'Equipo'
+    const team = teams.find((t) => t.id === teamId)
+    if (!team) return 'Equipo'
+    return team.flag ? `${team.flag} ${team.name}` : team.name
   }
 
   // Calculate next match teams
@@ -168,6 +173,14 @@ export default function SpectatorView() {
         <p className="text-sm text-gray-500">
           {session?.mode === 'queue' ? 'Cola clásica' : 'Todos contra todos'} · {teams.length} equipos
         </p>
+        {isTournament && (
+          <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-[#e94560]/20 px-3 py-1 text-xs font-bold text-[#e94560]">
+            {phase === 'group' && '🔥 Fase de grupos'}
+            {phase === 'semifinals' && '⚔️ Semifinales'}
+            {phase === 'final' && '🏆 Final'}
+            {phase === 'completed' && '🏅 Torneo completado'}
+          </div>
+        )}
       </div>
 
       {/* Current Match */}
@@ -228,27 +241,161 @@ export default function SpectatorView() {
         </div>
       )}
 
-      {/* Standings */}
-      {session?.mode === 'round-robin' && teams.length > 0 && (
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-          <h3 className="mb-3 font-semibold text-gray-300">Tabla de posiciones</h3>
+      {/* Tournament Standings (real standings from session.standings) */}
+      {isTournament && session?.standings && Object.keys(session.standings).length > 0 && (
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3">
+            📊 Tabla de posiciones
+          </p>
+          <div className="flex flex-col gap-2 text-sm">
+            <div className="grid grid-cols-5 gap-2 text-xs text-gray-500">
+              <span>Equipo</span>
+              <span className="text-center">PJ</span>
+              <span className="text-center">PG</span>
+              <span className="text-center">PF</span>
+              <span className="text-center">Diff</span>
+            </div>
+            {Object.entries(session.standings)
+              .sort(([, a], [, b]) => {
+                if (b.wins !== a.wins) return b.wins - a.wins
+                const diffA = a.pointsFor - a.pointsAgainst
+                const diffB = b.pointsFor - b.pointsAgainst
+                if (diffB !== diffA) return diffB - diffA
+                return b.pointsFor - a.pointsFor
+              })
+              .map(([teamId, s], i) => (
+                <div
+                  key={teamId}
+                  className={`grid grid-cols-5 gap-2 rounded-lg p-2 ${i < 2 && phase === 'group' ? 'bg-[#e94560]/10 border border-[#e94560]/20' : 'bg-white/5'}`}
+                >
+                  <span className="font-semibold text-white truncate">{getTeamName(teamId)}</span>
+                  <span className="text-center text-gray-400">{s.played || 0}</span>
+                  <span className="text-center text-[#e94560]">{s.wins || 0}</span>
+                  <span className="text-center text-gray-400">{s.pointsFor || 0}</span>
+                  <span className="text-center text-gray-400">
+                    {(s.pointsFor - s.pointsAgainst) > 0 ? `+${s.pointsFor - s.pointsAgainst}` : s.pointsFor - s.pointsAgainst}
+                  </span>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
+      {/* Group Stage Fixture */}
+      {isTournament && phase === 'group' && session?.groupMatches && (
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3">
+            🗓️ Fixture de grupos
+          </p>
           <div className="flex flex-col gap-2">
-            {[...teams]
-              .sort((a, b) => (b.wins || 0) - (a.wins || 0) || (b.totalPoints || 0) - (a.totalPoints || 0))
-              .map((team, i) => (
-                <div key={team.id} className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2">
+            {Object.values(session.groupMatches)
+              .sort((a, b) => (a.order || 0) - (b.order || 0))
+              .map((m) => (
+                <div
+                  key={m.id}
+                  className={`flex items-center justify-between rounded-lg p-2 text-sm ${
+                    m.status === 'playing'
+                      ? 'bg-[#e94560]/10 border border-[#e94560]/20'
+                      : m.status === 'finished'
+                        ? 'bg-white/5 opacity-60'
+                        : 'bg-white/5'
+                  }`}
+                >
                   <div className="flex items-center gap-2">
-                    <span className="w-5 text-center text-xs text-gray-500">{i + 1}</span>
-                    <span className="text-sm text-white">{team.name}</span>
+                    {m.status === 'playing' && <span className="h-2 w-2 animate-pulse rounded-full bg-[#e94560]"></span>}
+                    {m.status === 'finished' && <span>✅</span>}
+                    {m.status === 'scheduled' && <span className="text-gray-500">⏳</span>}
+                    <span className="font-semibold text-white">{getTeamName(m.teamA)}</span>
                   </div>
-                  <div className="flex gap-3 text-xs text-gray-400">
-                    <span>{team.wins || 0}V</span>
-                    <span>{team.losses || 0}D</span>
-                    <span className="text-[#e94560]">{team.totalPoints || 0}pts</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-400">
+                      {m.status === 'finished' ? `${m.scoreA}-${m.scoreB}` : 'vs'}
+                    </span>
+                    <span className="font-semibold text-[#e94560]">{getTeamName(m.teamB)}</span>
                   </div>
                 </div>
               ))}
           </div>
+        </div>
+      )}
+
+      {/* Knockout Bracket */}
+      {isTournament && (phase === 'semifinals' || phase === 'final' || phase === 'completed') && session?.bracket && (
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3">
+            🏆 Eliminatorias
+          </p>
+          <div className="flex flex-col gap-3">
+            {session.bracket.semifinal1 && (
+              <div className={`rounded-lg p-3 ${session.bracket.semifinal1.status === 'finished' ? 'bg-[#e94560]/10 border border-[#e94560]/20' : 'bg-white/5'}`}>
+                <p className="text-xs text-gray-500 mb-1">Semifinal 1</p>
+                <div className="flex items-center justify-between">
+                  <span className={`font-semibold ${session.bracket.semifinal1.winner === session.bracket.semifinal1.teamA ? 'text-white' : 'text-gray-400'}`}>
+                    {getTeamName(session.bracket.semifinal1.teamA)}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {session.bracket.semifinal1.status === 'finished' ? `${session.bracket.semifinal1.scoreA}-${session.bracket.semifinal1.scoreB}` : 'vs'}
+                  </span>
+                  <span className={`font-semibold ${session.bracket.semifinal1.winner === session.bracket.semifinal1.teamB ? 'text-white' : 'text-gray-400'}`}>
+                    {getTeamName(session.bracket.semifinal1.teamB)}
+                  </span>
+                </div>
+                {session.bracket.semifinal1.status === 'finished' && (
+                  <p className="mt-1 text-xs text-[#e94560]">Ganador: {getTeamName(session.bracket.semifinal1.winner)}</p>
+                )}
+              </div>
+            )}
+            {session.bracket.semifinal2 && (
+              <div className={`rounded-lg p-3 ${session.bracket.semifinal2.status === 'finished' ? 'bg-[#e94560]/10 border border-[#e94560]/20' : 'bg-white/5'}`}>
+                <p className="text-xs text-gray-500 mb-1">Semifinal 2</p>
+                <div className="flex items-center justify-between">
+                  <span className={`font-semibold ${session.bracket.semifinal2.winner === session.bracket.semifinal2.teamA ? 'text-white' : 'text-gray-400'}`}>
+                    {getTeamName(session.bracket.semifinal2.teamA)}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {session.bracket.semifinal2.status === 'finished' ? `${session.bracket.semifinal2.scoreA}-${session.bracket.semifinal2.scoreB}` : 'vs'}
+                  </span>
+                  <span className={`font-semibold ${session.bracket.semifinal2.winner === session.bracket.semifinal2.teamB ? 'text-white' : 'text-gray-400'}`}>
+                    {getTeamName(session.bracket.semifinal2.teamB)}
+                  </span>
+                </div>
+                {session.bracket.semifinal2.status === 'finished' && (
+                  <p className="mt-1 text-xs text-[#e94560]">Ganador: {getTeamName(session.bracket.semifinal2.winner)}</p>
+                )}
+              </div>
+            )}
+            {session.bracket.final && (
+              <div className={`rounded-lg p-3 ${session.bracket.final.status === 'finished' ? 'bg-[#e94560]/10 border border-[#e94560]/20' : 'bg-white/5'}`}>
+                <p className="text-xs text-gray-500 mb-1">Final</p>
+                <div className="flex items-center justify-between">
+                  <span className={`font-semibold ${session.bracket.final.winner === session.bracket.final.teamA ? 'text-white' : 'text-gray-400'}`}>
+                    {getTeamName(session.bracket.final.teamA)}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {session.bracket.final.status === 'finished' ? `${session.bracket.final.scoreA}-${session.bracket.final.scoreB}` : 'vs'}
+                  </span>
+                  <span className={`font-semibold ${session.bracket.final.winner === session.bracket.final.teamB ? 'text-white' : 'text-gray-400'}`}>
+                    {getTeamName(session.bracket.final.teamB)}
+                  </span>
+                </div>
+                {session.bracket.final.status === 'finished' && (
+                  <p className="mt-1 text-xs text-[#e94560]">Ganador: {getTeamName(session.bracket.final.winner)}</p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Champion */}
+      {isTournament && phase === 'completed' && session?.champion && (
+        <div className="rounded-2xl border border-[#e94560]/30 bg-[#e94560]/10 p-6 text-center">
+          <p className="text-sm font-semibold uppercase tracking-wider text-[#e94560]">
+            🏆 Campeón del torneo
+          </p>
+          <p className="mt-2 text-3xl font-black text-white">
+            {getTeamName(session.champion)}
+          </p>
         </div>
       )}
 
@@ -261,7 +408,7 @@ export default function SpectatorView() {
           >
             ← Volver a equipos
           </button>
-          <h3 className="mb-1 text-xl font-bold text-white">{selectedTeam.name}</h3>
+          <h3 className="mb-1 text-xl font-bold text-white">{selectedTeam.flag ? `${selectedTeam.flag} ${selectedTeam.name}` : selectedTeam.name}</h3>
           <p className="mb-4 text-xs text-gray-500">{selectedTeam.city} · Capitán: {selectedTeam.captain || 'No definido'}</p>
 
           <div className="flex flex-col gap-2">
@@ -299,7 +446,7 @@ export default function SpectatorView() {
                 onClick={() => setSelectedTeam(team)}
                 className="text-left rounded-lg bg-white/5 px-3 py-3 hover:bg-white/10 transition-colors cursor-pointer"
               >
-                <p className="text-sm font-medium text-white">{team.name}</p>
+                <p className="text-sm font-medium text-white">{team.flag ? `${team.flag} ${team.name}` : team.name}</p>
                 <p className="text-xs text-gray-500">{team.players?.length || 0} jugadores · {team.city}</p>
               </button>
             ))}

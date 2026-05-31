@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useSessionContext } from '../contexts/SessionContext'
-import { validateTeamPin, updateTeam, penalizeTeamEdit, getSession } from '../services/sessionService'
+import { validateTeamPin, updateTeam, penalizeTeamEdit, getSession, getTeam } from '../services/sessionService'
 import Button from '../components/common/Button'
 import Input from '../components/common/Input'
 
@@ -46,7 +46,7 @@ export default function EditTeam() {
         const session = await getSession(sessionId)
         if (session) {
           setSessionData(session)
-          const t = session.teams?.[teamId]
+          const t = await getTeam(teamId)
           if (t) setTeam({ ...t, id: teamId })
         }
       } catch (err) {

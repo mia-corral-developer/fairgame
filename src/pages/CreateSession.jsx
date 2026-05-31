@@ -58,9 +58,22 @@ export default function CreateSession() {
           className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-[#e94560] focus:ring-1 focus:ring-[#e94560]/50"
         >
           <option value="queue" className="bg-[#1a1a2e]">Cola clásica</option>
-          <option value="round-robin" className="bg-[#1a1a2e]">Todos contra todos</option>
+          <option value="round-robin" className="bg-[#1a1a2e]">Todos contra todos (4 equipos)</option>
         </select>
       </label>
+
+      {mode === 'round-robin' && (
+        <div className="rounded-xl border border-[#e94560]/20 bg-[#e94560]/10 p-4 text-sm">
+          <p className="font-semibold text-[#e94560] mb-2">🏆 Torneo Todos contra todos</p>
+          <ul className="flex flex-col gap-1 text-gray-300">
+            <li>• Exactamente 4 equipos</li>
+            <li>• Fase de grupos: todos vs todos (6 partidos)</li>
+            <li>• <span className="text-[#e94560] font-bold">30 puntos</span> para ganar cada partido</li>
+            <li>• Semifinales: 1° vs 4°, 2° vs 3°</li>
+            <li>• Final: ganadores de semifinales</li>
+          </ul>
+        </div>
+      )}
 
       {error && <p className="text-sm text-red-400">{error}</p>}
 

@@ -8,7 +8,7 @@ import FlagSelector from '../components/common/FlagSelector'
 
 export default function CreateTeam() {
   const navigate = useNavigate()
-  const { sessionId, setTeam } = useSessionContext()
+  const { sessionId, setTeam, sessionData, teams } = useSessionContext()
   const [flag, setFlag] = useState('🏳️')
   const [teamName, setTeamName] = useState('')
   const [players, setPlayers] = useState([
@@ -17,6 +17,10 @@ export default function CreateTeam() {
   ])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const isRoundRobin = sessionData?.mode === 'round-robin'
+  const teamCount = teams?.length || 0
+  const remainingSlots = isRoundRobin ? Math.max(0, 4 - teamCount) : null
 
   function addPlayer() {
     if (players.length >= 12) return
@@ -86,6 +90,8 @@ export default function CreateTeam() {
     }
   }
 
+  const isFull = isRoundRobin && remainingSlots === 0
+
   return (
     <div className="flex flex-col gap-6 pt-4">
       <button
@@ -96,6 +102,26 @@ export default function CreateTeam() {
       </button>
 
       <h2 className="text-2xl font-bold text-white">Crear equipo</h2>
+
+      {isRoundRobin && (
+        <div className={`rounded-xl border p-4 text-sm ${
+          isFull
+            ? 'border-red-500/30 bg-red-500/10 text-red-400'
+            : 'border-[#e94560]/20 bg-[#e94560]/10 text-gray-300'
+        }`}>
+          <p className="font-semibold">
+            {isFull
+              ? '⚠️ Equipos completos'
+              : `🏆 Modo Todos contra todos · ${remainingSlots} cupo${remainingSlots !== 1 ? 's' : ''} disponible${remainingSlots !== 1 ? 's' : ''}`
+            }
+          </p>
+          {!isFull && (
+            <p className="text-xs text-gray-400 mt-1">
+              {teamCount}/4 equipos registrados
+            </p>
+          )}
+        </div>
+      )}
 
       <div>
         <label className="mb-1 block text-sm font-medium text-gray-300">Bandera</label>
@@ -174,8 +200,8 @@ export default function CreateTeam() {
 
       {error && <p className="text-sm text-red-400">{error}</p>}
 
-      <Button onClick={handleSave} disabled={loading}>
-        {loading ? 'Guardando...' : 'Guardar equipo'}
+      <Button onClick={handleSave} disabled={loading || isFull}>
+        {loading ? 'Guardando...' : isFull ? 'Equipos completos' : 'Guardar equipo'}
       </Button>
     </div>
   )

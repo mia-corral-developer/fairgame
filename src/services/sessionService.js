@@ -128,13 +128,25 @@ export async function addTeamToSession(sessionId, teamId) {
 export async function createTeam({ sessionId, name, players }) {
   const db = getFirebaseDB()
 
+  // Check session mode and team count limits
+  const session = await getSession(sessionId)
+  if (session?.mode === 'round-robin') {
+    const teamsSnap = await get(ref(db, 'teams'))
+    const allTeams = teamsSnap.exists() ? teamsSnap.val() : {}
+    const sessionTeamCount = Object.values(allTeams).filter((t) => t.sessionId === sessionId).length
+    if (sessionTeamCount >= 4) {
+      throw new Error('El modo Todos contra todos permite máximo 4 equipos. Ya están completos.')
+    }
+  }
+
   // Validate no duplicate players across teams
-  const teamsSnap = await get(ref(db, `sessions/${sessionId}/teams`))
+  const teamsSnap = await get(ref(db, 'teams'))
   if (teamsSnap.exists()) {
-    const existingTeams = teamsSnap.val()
+    const allTeams = teamsSnap.val()
     const existingPlayers = new Set()
-    for (const tid in existingTeams) {
-      const team = existingTeams[tid]
+    for (const tid in allTeams) {
+      const team = allTeams[tid]
+      if (team.sessionId !== sessionId) continue
       if (team.players && Array.isArray(team.players)) {
         team.players.forEach((p) => {
           if (typeof p === 'string') {
@@ -154,7 +166,7 @@ export async function createTeam({ sessionId, name, players }) {
     }
   }
 
-  const teamRef = push(ref(db, `sessions/${sessionId}/teams`))
+  const teamRef = push(ref(db, 'teams'))
   const teamId = teamRef.key
   const pin = generateTeamPin()
 
@@ -162,6 +174,7 @@ export async function createTeam({ sessionId, name, players }) {
 
   const teamData = {
     id: teamId,
+    sessionId,
     name: name.trim(),
     players: players.filter((p) => p.name.trim()),
     captain: captain ? captain.name : players[0]?.name,
@@ -181,7 +194,7 @@ export async function createTeam({ sessionId, name, players }) {
 
 export async function getTeam(sessionId, teamId) {
   const db = getFirebaseDB()
-  const snapshot = await get(ref(db, `sessions/${sessionId}/teams/${teamId}`))
+  const snapshot = await get(ref(db, `teams/${teamId}`))
   return snapshot.exists() ? snapshot.val() : null
 }
 
@@ -192,11 +205,14 @@ export async function validateTeamPin(sessionId, teamId, pin) {
 
 export function subscribeToTeams(sessionId, callback) {
   const db = getFirebaseDB()
-  const teamsRef = ref(db, `sessions/${sessionId}/teams`)
+  const teamsRef = ref(db, 'teams')
   onValue(teamsRef, (snapshot) => {
     const teams = []
     snapshot.forEach((child) => {
-      teams.push({ id: child.key, ...child.val() })
+      const team = child.val()
+      if (team.sessionId === sessionId) {
+        teams.push({ id: child.key, ...team })
+      }
     })
     callback(teams)
   })
@@ -205,7 +221,7 @@ export function subscribeToTeams(sessionId, callback) {
 
 export async function updateTeam(sessionId, teamId, updates) {
   const db = getFirebaseDB()
-  await update(ref(db, `sessions/${sessionId}/teams/${teamId}`), updates)
+  await update(ref(db, `teams/${teamId}`), updates)
 }
 
 export async function penalizeTeamEdit(sessionId, teamId) {
@@ -273,7 +289,13 @@ export async function initGroupMatches(sessionId) {
   if (!session || session.mode !== 'round-robin') return false
   if (session.groupMatches && Object.keys(session.groupMatches).length > 0) return false
 
-  const teamIds = session.teams ? Object.keys(session.teams) : []
+  // Read teams from root collection, filter by sessionId client-side
+  const teamsSnap = await get(ref(db, 'teams'))
+  const allTeams = teamsSnap.exists() ? teamsSnap.val() : {}
+  const teamIds = Object.entries(allTeams)
+    .filter(([, t]) => t.sessionId === sessionId)
+    .map(([id]) => id)
+
   if (teamIds.length < 2) return false
 
   const groupMatches = generateGroupMatches(teamIds)
@@ -429,14 +451,22 @@ export async function finishGroupMatch(sessionId, matchId, winnerTeamId, scoreA,
  * Returns array of { teamId, wins, played, pointsFor, pointsAgainst, diff }.
  */
 export async function getOrderedStandings(sessionId) {
+  const db = getFirebaseDB()
   const session = await getSession(sessionId)
   const standings = session?.standings || {}
-  const teamIds = session?.teams ? Object.keys(session.teams) : []
+
+  // Read teams from root collection, filter by sessionId client-side
+  const teamsSnap = await get(ref(db, 'teams'))
+  const allTeams = teamsSnap.exists() ? teamsSnap.val() : {}
+  const teamIds = Object.entries(allTeams)
+    .filter(([, t]) => t.sessionId === sessionId)
+    .map(([id]) => id)
 
   const result = teamIds.map((teamId) => {
     const s = standings[teamId] || { wins: 0, played: 0, pointsFor: 0, pointsAgainst: 0 }
     return {
       teamId,
+      teamName: allTeams[teamId]?.name || 'Equipo',
       wins: s.wins,
       played: s.played,
       pointsFor: s.pointsFor,
@@ -565,6 +595,30 @@ export async function transitionToFinal(sessionId) {
   })
 }
 
+/**
+ * Shuffle the group stage fixture order randomly.
+ * Only allowed before any match has been played.
+ */
+export async function shuffleGroupMatches(sessionId) {
+  const db = getFirebaseDB()
+  const session = await getSession(sessionId)
+  if (!session) throw new Error('Sesión no encontrada')
+  if (session.phase !== 'group') throw new Error('Solo se puede sortear en fase de grupos')
+  if (session.currentMatch) throw new Error('Termina el partido actual primero')
+
+  const matches = session.groupMatches || []
+  const played = matches.filter((m) => m.status === 'finished').length
+  if (played > 0) throw new Error('No se puede sortear después de iniciar el torneo')
+
+  // Fisher-Yates shuffle
+  for (let i = matches.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[matches[i], matches[j]] = [matches[j], matches[i]]
+  }
+
+  await update(ref(db, `sessions/${sessionId}`), { groupMatches: matches })
+}
+
 // ─────── LEGACY FUNCTIONS (kept for queue mode compatibility) ───────
 
 export async function createMatch({ sessionId, teamA, teamB }) {
@@ -619,9 +673,9 @@ export async function finishMatch(sessionId, matchId, winnerTeamId) {
     winner: winnerTeamId,
   })
 
-  const winnerRef = ref(db, `sessions/${sessionId}/teams/${winnerTeamId}`)
+  const winnerRef = ref(db, `teams/${winnerTeamId}`)
   const loserTeamId = winnerTeamId === match.teamA ? match.teamB : match.teamA
-  const loserRef = ref(db, `sessions/${sessionId}/teams/${loserTeamId}`)
+  const loserRef = ref(db, `teams/${loserTeamId}`)
 
   const [winnerSnap, loserSnap] = await Promise.all([get(winnerRef), get(loserRef)])
   const winner = winnerSnap.val()
@@ -689,7 +743,7 @@ export async function rotateQueue(sessionId, winnerTeamId, loserTeamId) {
   queue = queue.filter((id) => id !== winnerTeamId && id !== loserTeamId)
   queue.push(loserTeamId)
 
-  const winnerSnap = await get(ref(db, `sessions/${sessionId}/teams/${winnerTeamId}`))
+  const winnerSnap = await get(ref(db, `teams/${winnerTeamId}`))
   const winner = winnerSnap.val()
   const maxConsecutive = session.maxConsecutiveWins || getMaxConsecutiveWins(session.teamCount || 4)
   const reachedLimit = (winner?.consecutiveWins || 0) >= maxConsecutive

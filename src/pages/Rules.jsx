@@ -66,38 +66,46 @@ export default function Rules() {
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
           <h3 className="mb-3 text-lg font-bold text-[#e94560]">🏆 Todos contra todos</h3>
           <p className="mb-3 text-sm text-gray-400">
-            Cada equipo juega contra todos los demás una vez. Gana quien acumule más
-            victorias al finalizar todos los enfrentamientos.
+            Torneo de 4 equipos con fase de grupos todos vs todos, seguido de semifinales y final.
+            El sistema gestiona el fixture automáticamente.
           </p>
 
           <ul className="flex flex-col gap-2 text-sm text-gray-300">
             <li className="flex gap-2">
               <span className="text-[#e94560]">•</span>
-              <span>Equipos <strong>fijos</strong>: una vez registrado, el equipo no puede modificarse.</span>
+              <span><strong>4 equipos exactos</strong>: el modo torneo requiere exactamente 4 equipos para generar el fixture.</span>
             </li>
             <li className="flex gap-2">
               <span className="text-[#e94560]">•</span>
-              <span>Un jugador <strong>NO puede estar en dos equipos</strong> al mismo tiempo.</span>
+              <span><strong>Edición de equipos</strong>: una vez registrado, el capitán puede editar la información del equipo utilizando su PIN correspondiente.</span>
             </li>
             <li className="flex gap-2">
               <span className="text-[#e94560]">•</span>
-              <span>El sistema genera un calendario de partidos automáticamente.</span>
+              <span>Un jugador <strong>NO puede estar en dos equipos</strong> al mismo tiempo. Los equipos deben tener jugadores completamente distintos.</span>
             </li>
             <li className="flex gap-2">
               <span className="text-[#e94560]">•</span>
-              <span>Cada equipo juega exactamente una vez contra cada rival.</span>
+              <span>El sistema genera un <strong>calendario de partidos automáticamente</strong>: 6 partidos de fase de grupos (todos vs todos).</span>
             </li>
             <li className="flex gap-2">
               <span className="text-[#e94560]">•</span>
-              <span>Límite de puntos: 15 puntos (4 equipos), 12 puntos (5-6 equipos), 10 puntos (7+ equipos).</span>
+              <span><strong>Límite de puntos: 30 puntos</strong> para ganar cada partido (fijo, no dinámico).</span>
             </li>
             <li className="flex gap-2">
               <span className="text-[#e94560]">•</span>
-              <span>Clasificación: 2 puntos por victoria, 0 por derrota.</span>
+              <span><strong>Clasificación</strong>: 1 punto por victoria. Se ordena por partidos ganados, diferencia de puntos, y puntos a favor.</span>
             </li>
             <li className="flex gap-2">
               <span className="text-[#e94560]">•</span>
-              <span>Desempate: diferencia de puntos total, luego puntos a favor.</span>
+              <span><strong>Semifinales</strong>: 1° del grupo vs 4° del grupo, 2° del grupo vs 3° del grupo.</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="text-[#e94560]">•</span>
+              <span><strong>Final</strong>: los ganadores de las semifinales se enfrentan por el campeonato.</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="text-[#e94560]">•</span>
+              <span><strong>Desempate</strong>: diferencia de puntos total (PF - PC), luego puntos a favor.</span>
             </li>
           </ul>
         </div>
