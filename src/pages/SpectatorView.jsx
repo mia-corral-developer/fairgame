@@ -261,8 +261,10 @@ export default function SpectatorView() {
                 return { teamId: t.id, name: getTeamName(t.id), wins: s.wins || 0, played: s.played || 0, pointsFor: s.pointsFor || 0, diff: (s.pointsFor || 0) - (s.pointsAgainst || 0) }
               }).sort((a, b) => b.wins - a.wins || b.diff - a.diff || b.pointsFor - a.pointsFor)
 
+              const allGroupDone = phase !== 'group'
               const hasResults = standingsData.some((s) => s.played > 0)
               const showCut = teams.length > 4 && hasResults
+              const cutLabel = allGroupDone ? 'ELIMINADOS' : '— clasifican los 4 primeros —'
 
               return standingsData.flatMap((s, i) => {
                 const items = []
@@ -270,7 +272,7 @@ export default function SpectatorView() {
                   items.push(
                     <div key="cut" className="flex items-center gap-2 my-1">
                       <div className="flex-1 h-px bg-[#e94560]/50" />
-                      <span className="text-[10px] font-bold text-[#e94560] tracking-wider">ELIMINADOS</span>
+                      <span className="text-[10px] font-bold text-[#e94560] tracking-wider">{cutLabel}</span>
                       <div className="flex-1 h-px bg-[#e94560]/50" />
                     </div>
                   )

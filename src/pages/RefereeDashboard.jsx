@@ -316,6 +316,7 @@ export default function RefereeDashboard() {
   const groupByes = sessionData?.groupByes || {}
   const hasResults = standings.some((s) => s.played > 0)
   const showCutLine = teams.length > 4 && hasResults
+  const cutLabel = phase !== 'group' ? 'ELIMINADOS' : '— clasifican los 4 primeros —'
 
   // Render login
   if (!verifiedSession) {
@@ -471,7 +472,7 @@ export default function RefereeDashboard() {
                     items.push(
                       <div key="cut" className="flex items-center gap-2 my-1">
                         <div className="flex-1 h-px bg-[#e94560]/50" />
-                        <span className="text-[10px] font-bold text-[#e94560] tracking-wider">ELIMINADOS</span>
+                        <span className="text-[10px] font-bold text-[#e94560] tracking-wider">{cutLabel}</span>
                         <div className="flex-1 h-px bg-[#e94560]/50" />
                       </div>
                     )
@@ -622,7 +623,7 @@ export default function RefereeDashboard() {
                     items.push(
                       <div key="cut" className="flex items-center gap-2 my-1">
                         <div className="flex-1 h-px bg-[#e94560]/50" />
-                        <span className="text-[10px] font-bold text-[#e94560] tracking-wider">ELIMINADOS</span>
+                        <span className="text-[10px] font-bold text-[#e94560] tracking-wider">{cutLabel}</span>
                         <div className="flex-1 h-px bg-[#e94560]/50" />
                       </div>
                     )
