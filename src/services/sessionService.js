@@ -606,17 +606,25 @@ export async function shuffleGroupMatches(sessionId) {
   if (session.phase !== 'group') throw new Error('Solo se puede sortear en fase de grupos')
   if (session.currentMatch) throw new Error('Termina el partido actual primero')
 
-  const matches = session.groupMatches || []
-  const played = matches.filter((m) => m.status === 'finished').length
+  const groupMatchesObj = session.groupMatches || {}
+  const entries = Object.entries(groupMatchesObj)
+  const played = entries.filter(([, m]) => m.status === 'finished').length
   if (played > 0) throw new Error('No se puede sortear después de iniciar el torneo')
 
-  // Fisher-Yates shuffle
-  for (let i = matches.length - 1; i > 0; i--) {
+  // Shuffle team pairs across match slots (keys stay the same, Firebase preserves push-key order)
+  const pairs = entries.map(([, m]) => ({ teamA: m.teamA, teamB: m.teamB }))
+  for (let i = pairs.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
-    ;[matches[i], matches[j]] = [matches[j], matches[i]]
+    ;[pairs[i], pairs[j]] = [pairs[j], pairs[i]]
   }
 
-  await update(ref(db, `sessions/${sessionId}`), { groupMatches: matches })
+  const updates = {}
+  entries.forEach(([matchId], idx) => {
+    updates[`sessions/${sessionId}/groupMatches/${matchId}/teamA`] = pairs[idx].teamA
+    updates[`sessions/${sessionId}/groupMatches/${matchId}/teamB`] = pairs[idx].teamB
+  })
+
+  await update(ref(db), updates)
 }
 
 // ─────── LEGACY FUNCTIONS (kept for queue mode compatibility) ───────
