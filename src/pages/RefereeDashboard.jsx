@@ -302,11 +302,16 @@ export default function RefereeDashboard() {
   const bracket = sessionData?.bracket || {}
 
   const groupMatches = isTournament
-    ? Object.values(sessionData?.groupMatches || {}).sort((a, b) => {
-        const order = { playing: 0, scheduled: 1, finished: 2 }
-        return order[a.status] - order[b.status]
-      })
+    ? Object.values(sessionData?.groupMatches || {}).sort((a, b) => a.id?.localeCompare(b.id))
     : []
+
+  const matchesPerRound = teams.length > 0 ? Math.floor(teams.length / 2) : 2
+  const groupRounds = groupMatches.reduce((acc, m, i) => {
+    const r = m.round ?? (Math.floor(i / matchesPerRound) + 1)
+    if (!acc[r]) acc[r] = []
+    acc[r].push(m)
+    return acc
+  }, {})
 
   // Render login
   if (!verifiedSession) {
@@ -401,35 +406,38 @@ export default function RefereeDashboard() {
             )}
           </div>
 
-          {/* Fixture list — group phase */}
+          {/* Fixture list grouped by round */}
           {isTournament && phase === 'group' && groupMatches.length > 0 && (
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3">
-                📋 Fixture
-              </p>
-              <div className="flex flex-col gap-2">
-                {groupMatches.map((m, i) => (
-                  <div
-                    key={m.id}
-                    className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
-                      m.status === 'playing' ? 'bg-[#e94560]/10 border border-[#e94560]/30' :
-                      m.status === 'finished' ? 'opacity-40' : 'bg-white/5'
-                    }`}
-                  >
-                    <span className="w-4 text-xs text-gray-600">{i + 1}</span>
-                    <span className={`flex-1 text-right font-medium ${m.status === 'finished' && m.winner === m.teamA ? 'text-white' : 'text-gray-400'}`}>
-                      {getTeamName(m.teamA)}
-                    </span>
-                    <span className="text-xs text-gray-600 px-1">
-                      {m.status === 'finished' ? `${m.scoreA}-${m.scoreB}` : 'vs'}
-                    </span>
-                    <span className={`flex-1 font-medium ${m.status === 'finished' && m.winner === m.teamB ? 'text-white' : 'text-gray-400'}`}>
-                      {getTeamName(m.teamB)}
-                    </span>
-                    {m.status === 'playing' && <span className="text-xs text-[#e94560]">●</span>}
+            <div className="flex flex-col gap-3">
+              {Object.entries(groupRounds).map(([round, rMatches]) => (
+                <div key={round} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
+                    Jornada {round}
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    {rMatches.map((m) => (
+                      <div
+                        key={m.id}
+                        className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
+                          m.status === 'playing' ? 'bg-[#e94560]/10 border border-[#e94560]/30' :
+                          m.status === 'finished' ? 'opacity-40' : 'bg-white/5'
+                        }`}
+                      >
+                        <span className={`flex-1 text-right font-medium ${m.status === 'finished' && m.winner === m.teamA ? 'text-white' : 'text-gray-400'}`}>
+                          {getTeamName(m.teamA)}
+                        </span>
+                        <span className="text-xs text-gray-500 w-10 text-center">
+                          {m.status === 'finished' ? `${m.scoreA}-${m.scoreB}` : 'vs'}
+                        </span>
+                        <span className={`flex-1 font-medium ${m.status === 'finished' && m.winner === m.teamB ? 'text-white' : 'text-gray-400'}`}>
+                          {getTeamName(m.teamB)}
+                        </span>
+                        {m.status === 'playing' && <span className="text-xs text-[#e94560]">●</span>}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
           )}
 

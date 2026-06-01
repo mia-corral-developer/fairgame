@@ -243,37 +243,64 @@ export async function penalizeTeamEdit(sessionId, teamId) {
  * Generate all group matches (round-robin) for given team IDs.
  * Returns an object keyed by matchId.
  */
-function generateGroupMatches(teamIds) {
-  const matches = {}
-  const matchList = []
-  for (let i = 0; i < teamIds.length; i++) {
-    for (let j = i + 1; j < teamIds.length; j++) {
-      matchList.push({
-        teamA: teamIds[i],
-        teamB: teamIds[j],
-      })
-    }
-  }
+// Circle method: guarantees each team plays exactly once per round.
+// Supports even and odd team counts (odd adds a bye slot).
+function buildRoundRobinRounds(teamIds) {
+  const teams = [...teamIds]
+  if (teams.length % 2 === 1) teams.push(null) // bye slot for odd counts
+  const n = teams.length
+  const fixed = teams[0]
+  const rotating = teams.slice(1)
+  const rounds = []
 
-  // Shuffle match order randomly (sorteo)
-  for (let i = matchList.length - 1; i > 0; i--) {
+  for (let r = 0; r < n - 1; r++) {
+    const current = [fixed, ...rotating]
+    const pairs = []
+    for (let i = 0; i < n / 2; i++) {
+      const a = current[i]
+      const b = current[n - 1 - i]
+      if (a !== null && b !== null) pairs.push({ teamA: a, teamB: b })
+    }
+    rounds.push(pairs)
+    rotating.unshift(rotating.pop()) // rotate
+  }
+  return rounds
+}
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
-    ;[matchList[i], matchList[j]] = [matchList[j], matchList[i]]
+    ;[arr[i], arr[j]] = [arr[j], arr[i]]
   }
+}
 
-  matchList.forEach((m) => {
-    const matchId = push(ref(getFirebaseDB(), 'temp')).key // generate unique key
-    matches[matchId] = {
-      id: matchId,
-      teamA: m.teamA,
-      teamB: m.teamB,
-      status: 'scheduled',
-      scoreA: 0,
-      scoreB: 0,
-      winner: null,
-      startedAt: null,
-      finishedAt: null,
-    }
+function generateGroupMatches(teamIds) {
+  const rounds = buildRoundRobinRounds(teamIds)
+  shuffle(rounds)
+  rounds.forEach((r) => {
+    shuffle(r)
+    r.forEach((m) => { if (Math.random() < 0.5) [m.teamA, m.teamB] = [m.teamB, m.teamA] })
+  })
+
+  const matches = {}
+  let idx = 1
+  rounds.forEach((round, roundIdx) => {
+    round.forEach((m) => {
+      const matchId = `gm-${String(idx).padStart(2, '0')}`
+      matches[matchId] = {
+        id: matchId,
+        round: roundIdx + 1,
+        teamA: m.teamA,
+        teamB: m.teamB,
+        status: 'scheduled',
+        scoreA: 0,
+        scoreB: 0,
+        winner: null,
+        startedAt: null,
+        finishedAt: null,
+      }
+      idx++
+    })
   })
 
   return matches
@@ -614,21 +641,25 @@ export async function shuffleGroupMatches(sessionId) {
     groupMatchesObj = fresh.groupMatches || {}
   }
 
-  const entries = Object.entries(groupMatchesObj)
+  const entries = Object.entries(groupMatchesObj).sort(([a], [b]) => a.localeCompare(b))
   const played = entries.filter(([, m]) => m.status === 'finished').length
   if (played > 0) throw new Error('No se puede sortear después de iniciar el torneo')
 
-  // Shuffle team pairs across match slots
-  const pairs = entries.map(([, m]) => ({ teamA: m.teamA, teamB: m.teamB }))
-  for (let i = pairs.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[pairs[i], pairs[j]] = [pairs[j], pairs[i]]
-  }
+  // Regenerate schedule using circle method so no team plays back-to-back
+  const teamIds = [...new Set(entries.flatMap(([, m]) => [m.teamA, m.teamB]))]
+  const rounds = buildRoundRobinRounds(teamIds)
+  shuffle(rounds)
+  rounds.forEach((r) => {
+    shuffle(r)
+    r.forEach((m) => { if (Math.random() < 0.5) [m.teamA, m.teamB] = [m.teamB, m.teamA] })
+  })
+  const newPairs = rounds.flat()
 
   const updates = {}
-  entries.forEach(([matchId], idx) => {
-    updates[`sessions/${sessionId}/groupMatches/${matchId}/teamA`] = pairs[idx].teamA
-    updates[`sessions/${sessionId}/groupMatches/${matchId}/teamB`] = pairs[idx].teamB
+  entries.forEach(([matchId], i) => {
+    updates[`sessions/${sessionId}/groupMatches/${matchId}/teamA`] = newPairs[i].teamA
+    updates[`sessions/${sessionId}/groupMatches/${matchId}/teamB`] = newPairs[i].teamB
+    updates[`sessions/${sessionId}/groupMatches/${matchId}/round`] = Math.floor(i / Math.floor(teamIds.length / 2)) + 1
   })
 
   await update(ref(db), updates)
