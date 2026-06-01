@@ -389,7 +389,7 @@ export default function RefereeDashboard() {
       {/* NO HAY PARTIDO */}
       {!match ? (
         <div className="flex flex-col gap-4">
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-center">
             <p className="text-gray-400">No hay partido activo</p>
             <p className="mt-1 text-sm text-gray-500">
               {teams.length < 2 ? 'Esperando equipos...' : `${teams.length} equipos listos`}
@@ -400,6 +400,38 @@ export default function RefereeDashboard() {
               </p>
             )}
           </div>
+
+          {/* Fixture list — group phase */}
+          {isTournament && phase === 'group' && groupMatches.length > 0 && (
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3">
+                📋 Fixture
+              </p>
+              <div className="flex flex-col gap-2">
+                {groupMatches.map((m, i) => (
+                  <div
+                    key={m.id}
+                    className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
+                      m.status === 'playing' ? 'bg-[#e94560]/10 border border-[#e94560]/30' :
+                      m.status === 'finished' ? 'opacity-40' : 'bg-white/5'
+                    }`}
+                  >
+                    <span className="w-4 text-xs text-gray-600">{i + 1}</span>
+                    <span className={`flex-1 text-right font-medium ${m.status === 'finished' && m.winner === m.teamA ? 'text-white' : 'text-gray-400'}`}>
+                      {getTeamName(m.teamA)}
+                    </span>
+                    <span className="text-xs text-gray-600 px-1">
+                      {m.status === 'finished' ? `${m.scoreA}-${m.scoreB}` : 'vs'}
+                    </span>
+                    <span className={`flex-1 font-medium ${m.status === 'finished' && m.winner === m.teamB ? 'text-white' : 'text-gray-400'}`}>
+                      {getTeamName(m.teamB)}
+                    </span>
+                    {m.status === 'playing' && <span className="text-xs text-[#e94560]">●</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Standings table (group phase) */}
           {isTournament && phase === 'group' && standings.length > 0 && (
