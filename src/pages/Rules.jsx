@@ -66,48 +66,77 @@ export default function Rules() {
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
           <h3 className="mb-3 text-lg font-bold text-[#e94560]">🏆 Todos contra todos</h3>
           <p className="mb-3 text-sm text-gray-400">
-            Torneo de 4 equipos con fase de grupos todos vs todos, seguido de semifinales y final.
-            El sistema gestiona el fixture automáticamente.
+            Torneo tipo Champions: fase de grupos donde todos se enfrentan, seguida de semifinales y final.
+            Soporta de 4 a 8+ equipos. El sistema organiza el fixture automáticamente.
           </p>
 
-          <ul className="flex flex-col gap-2 text-sm text-gray-300">
-            <li className="flex gap-2">
-              <span className="text-[#e94560]">•</span>
-              <span><strong>4 equipos exactos</strong>: el modo torneo requiere exactamente 4 equipos para generar el fixture.</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-[#e94560]">•</span>
-              <span><strong>Edición de equipos</strong>: una vez registrado, el capitán puede editar la información del equipo utilizando su PIN correspondiente.</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-[#e94560]">•</span>
-              <span>Un jugador <strong>NO puede estar en dos equipos</strong> al mismo tiempo. Los equipos deben tener jugadores completamente distintos.</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-[#e94560]">•</span>
-              <span>El sistema genera un <strong>calendario de partidos automáticamente</strong>: 6 partidos de fase de grupos (todos vs todos).</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-[#e94560]">•</span>
-              <span><strong>Límite de puntos: 30 puntos</strong> para ganar cada partido (fijo, no dinámico).</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-[#e94560]">•</span>
-              <span><strong>Clasificación</strong>: 1 punto por victoria. Se ordena por partidos ganados, diferencia de puntos, y puntos a favor.</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-[#e94560]">•</span>
-              <span><strong>Semifinales</strong>: 1° del grupo vs 4° del grupo, 2° del grupo vs 3° del grupo.</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-[#e94560]">•</span>
-              <span><strong>Final</strong>: los ganadores de las semifinales se enfrentan por el campeonato.</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-[#e94560]">•</span>
-              <span><strong>Desempate</strong>: diferencia de puntos total (PF - PC), luego puntos a favor.</span>
-            </li>
-          </ul>
+          {/* Fase 1 */}
+          <div className="mb-4">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">Fase 1 — Grupos</p>
+            <ul className="flex flex-col gap-2 text-sm text-gray-300">
+              <li className="flex gap-2">
+                <span className="text-[#e94560]">•</span>
+                <span>Cada equipo juega contra <strong>todos los demás</strong>, organizado en jornadas.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-[#e94560]">•</span>
+                <span>Con <strong>equipos pares</strong> (4, 6…) todos juegan en cada jornada. Con <strong>equipos impares</strong> (5, 7…) un equipo distinto descansa por jornada.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-[#e94560]">•</span>
+                <span>El árbitro puede <strong>sortear el fixture</strong> antes de iniciar. Esto baraja el orden de las jornadas de forma que ningún equipo juegue dos partidos seguidos.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-[#e94560]">•</span>
+                <span><strong>30 puntos</strong> para ganar cada partido.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-[#e94560]">•</span>
+                <span><strong>Tabla de posiciones</strong>: se ordena por victorias → diferencia de puntos (PF − PC) → puntos a favor (PF).</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-[#e94560]">•</span>
+                <span>Al terminar todos los partidos, <strong>los 4 primeros clasifican</strong> a semifinales. El resto queda eliminado.</span>
+              </li>
+            </ul>
+          </div>
+
+          {/* Fase 2 */}
+          <div className="mb-4">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">Fase 2 — Semifinales</p>
+            <ul className="flex flex-col gap-2 text-sm text-gray-300">
+              <li className="flex gap-2">
+                <span className="text-[#e94560]">•</span>
+                <span>Los cruces premian al líder de grupos: <strong>1° vs 4°</strong> y <strong>2° vs 3°</strong>. Terminar primero da el rival más accesible.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-[#e94560]">•</span>
+                <span>Los perdedores de las semifinales quedan eliminados.</span>
+              </li>
+            </ul>
+          </div>
+
+          {/* Fase 3 */}
+          <div className="mb-4">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">Fase 3 — Final</p>
+            <ul className="flex flex-col gap-2 text-sm text-gray-300">
+              <li className="flex gap-2">
+                <span className="text-[#e94560]">•</span>
+                <span>Los dos ganadores de las semifinales se enfrentan. El ganador es el <strong>campeón del torneo</strong>.</span>
+              </li>
+            </ul>
+          </div>
+
+          {/* Tabla explicada */}
+          <div className="rounded-xl bg-white/5 p-3">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">Cómo leer la tabla</p>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-400">
+              <span><strong className="text-white">PJ</strong> — Partidos jugados</span>
+              <span><strong className="text-white">PG</strong> — Partidos ganados</span>
+              <span><strong className="text-white">PF</strong> — Puntos a favor (anotados)</span>
+              <span><strong className="text-white">Diff</strong> — PF menos puntos en contra</span>
+            </div>
+          </div>
         </div>
       </div>
 
