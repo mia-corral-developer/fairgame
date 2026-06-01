@@ -256,7 +256,6 @@ export default function SpectatorView() {
               <span className="text-center">Diff</span>
             </div>
             {(() => {
-              const hasResults = standingsData.some((s) => s.played > 0)
               const standingsData = teams.map((t) => {
                 const s = session?.standings?.[t.id] || { wins: 0, played: 0, pointsFor: 0, pointsAgainst: 0 }
                 return { teamId: t.id, name: getTeamName(t.id), wins: s.wins || 0, played: s.played || 0, pointsFor: s.pointsFor || 0, diff: (s.pointsFor || 0) - (s.pointsAgainst || 0) }
