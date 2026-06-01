@@ -241,8 +241,8 @@ export default function SpectatorView() {
         </div>
       )}
 
-      {/* Tournament Standings (real standings from session.standings) */}
-      {isTournament && session?.standings && Object.keys(session.standings).length > 0 && (
+      {/* Tournament Standings */}
+      {isTournament && phase === 'group' && teams.length > 0 && (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
           <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3">
             📊 Tabla de posiciones
@@ -255,68 +255,90 @@ export default function SpectatorView() {
               <span className="text-center">PF</span>
               <span className="text-center">Diff</span>
             </div>
-            {Object.entries(session.standings)
-              .sort(([, a], [, b]) => {
-                if (b.wins !== a.wins) return b.wins - a.wins
-                const diffA = a.pointsFor - a.pointsAgainst
-                const diffB = b.pointsFor - b.pointsAgainst
-                if (diffB !== diffA) return diffB - diffA
-                return b.pointsFor - a.pointsFor
+            {(() => {
+              const showCut = teams.length > 4
+              const standingsData = teams.map((t) => {
+                const s = session?.standings?.[t.id] || { wins: 0, played: 0, pointsFor: 0, pointsAgainst: 0 }
+                return { teamId: t.id, name: getTeamName(t.id), wins: s.wins || 0, played: s.played || 0, pointsFor: s.pointsFor || 0, diff: (s.pointsFor || 0) - (s.pointsAgainst || 0) }
+              }).sort((a, b) => b.wins - a.wins || b.diff - a.diff || b.pointsFor - a.pointsFor)
+
+              return standingsData.flatMap((s, i) => {
+                const items = []
+                if (showCut && i === 4) {
+                  items.push(
+                    <div key="cut" className="flex items-center gap-2 my-1">
+                      <div className="flex-1 h-px bg-[#e94560]/50" />
+                      <span className="text-[10px] font-bold text-[#e94560] tracking-wider">ELIMINADOS</span>
+                      <div className="flex-1 h-px bg-[#e94560]/50" />
+                    </div>
+                  )
+                }
+                items.push(
+                  <div key={s.teamId} className={`grid grid-cols-5 gap-2 rounded-lg p-2 ${!showCut || i < 4 ? 'bg-[#e94560]/10 border border-[#e94560]/20' : 'bg-white/5 opacity-50'}`}>
+                    <span className="font-semibold text-white truncate">{s.name}</span>
+                    <span className="text-center text-gray-400">{s.played}</span>
+                    <span className="text-center text-[#e94560]">{s.wins}</span>
+                    <span className="text-center text-gray-400">{s.pointsFor}</span>
+                    <span className="text-center text-gray-400">{s.diff > 0 ? `+${s.diff}` : s.diff}</span>
+                  </div>
+                )
+                return items
               })
-              .map(([teamId, s], i) => (
-                <div
-                  key={teamId}
-                  className={`grid grid-cols-5 gap-2 rounded-lg p-2 ${i < 2 && phase === 'group' ? 'bg-[#e94560]/10 border border-[#e94560]/20' : 'bg-white/5'}`}
-                >
-                  <span className="font-semibold text-white truncate">{getTeamName(teamId)}</span>
-                  <span className="text-center text-gray-400">{s.played || 0}</span>
-                  <span className="text-center text-[#e94560]">{s.wins || 0}</span>
-                  <span className="text-center text-gray-400">{s.pointsFor || 0}</span>
-                  <span className="text-center text-gray-400">
-                    {(s.pointsFor - s.pointsAgainst) > 0 ? `+${s.pointsFor - s.pointsAgainst}` : s.pointsFor - s.pointsAgainst}
-                  </span>
-                </div>
-              ))}
+            })()}
           </div>
         </div>
       )}
 
-      {/* Group Stage Fixture */}
+      {/* Group Stage Fixture — by jornada */}
       {isTournament && phase === 'group' && session?.groupMatches && (
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3">
-            🗓️ Fixture de grupos
-          </p>
-          <div className="flex flex-col gap-2">
-            {Object.values(session.groupMatches)
-              .sort((a, b) => (a.order || 0) - (b.order || 0))
-              .map((m) => (
-                <div
-                  key={m.id}
-                  className={`flex items-center justify-between rounded-lg p-2 text-sm ${
-                    m.status === 'playing'
-                      ? 'bg-[#e94560]/10 border border-[#e94560]/20'
-                      : m.status === 'finished'
-                        ? 'bg-white/5 opacity-60'
-                        : 'bg-white/5'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    {m.status === 'playing' && <span className="h-2 w-2 animate-pulse rounded-full bg-[#e94560]"></span>}
-                    {m.status === 'finished' && <span>✅</span>}
-                    {m.status === 'scheduled' && <span className="text-gray-500">⏳</span>}
-                    <span className="font-semibold text-white">{getTeamName(m.teamA)}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-400">
-                      {m.status === 'finished' ? `${m.scoreA}-${m.scoreB}` : 'vs'}
-                    </span>
-                    <span className="font-semibold text-[#e94560]">{getTeamName(m.teamB)}</span>
+        (() => {
+          const matchesPerRound = teams.length > 0 ? Math.floor(teams.length / 2) : 2
+          const sortedMatches = Object.values(session.groupMatches).sort((a, b) => (a.id || '').localeCompare(b.id || ''))
+          const groupByes = session.groupByes || {}
+          const rounds = sortedMatches.reduce((acc, m, i) => {
+            const r = m.round ?? (Math.floor(i / matchesPerRound) + 1)
+            if (!acc[r]) acc[r] = []
+            acc[r].push(m)
+            return acc
+          }, {})
+
+          return (
+            <div className="flex flex-col gap-3">
+              {Object.entries(rounds).map(([round, rMatches]) => (
+                <div key={round} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
+                    Jornada {round}
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    {rMatches.map((m) => (
+                      <div key={m.id} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
+                        m.status === 'playing' ? 'bg-[#e94560]/10 border border-[#e94560]/30' :
+                        m.status === 'finished' ? 'opacity-50' : 'bg-white/5'
+                      }`}>
+                        <span className={`flex-1 text-right font-medium ${m.status === 'finished' && m.winner === m.teamA ? 'text-white' : 'text-gray-400'}`}>
+                          {getTeamName(m.teamA)}
+                        </span>
+                        <span className="text-xs text-gray-500 w-10 text-center">
+                          {m.status === 'finished' ? `${m.scoreA}-${m.scoreB}` : 'vs'}
+                        </span>
+                        <span className={`flex-1 font-medium ${m.status === 'finished' && m.winner === m.teamB ? 'text-white' : 'text-gray-400'}`}>
+                          {getTeamName(m.teamB)}
+                        </span>
+                        {m.status === 'playing' && <span className="text-xs text-[#e94560] animate-pulse">●</span>}
+                      </div>
+                    ))}
+                    {groupByes[round] && (
+                      <div className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm bg-white/5 text-gray-500">
+                        <span>😴</span>
+                        <span>{getTeamName(groupByes[round])} descansa</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
-          </div>
-        </div>
+            </div>
+          )
+        })()
       )}
 
       {/* Knockout Bracket */}

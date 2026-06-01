@@ -313,6 +313,9 @@ export default function RefereeDashboard() {
     return acc
   }, {})
 
+  const groupByes = sessionData?.groupByes || {}
+  const showCutLine = teams.length > 4
+
   // Render login
   if (!verifiedSession) {
     return (
@@ -435,6 +438,12 @@ export default function RefereeDashboard() {
                         {m.status === 'playing' && <span className="text-xs text-[#e94560]">●</span>}
                       </div>
                     ))}
+                    {groupByes[round] && (
+                      <div className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm bg-white/5 text-gray-500">
+                        <span>😴</span>
+                        <span>{getTeamName(groupByes[round])} descansa</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -455,17 +464,28 @@ export default function RefereeDashboard() {
                   <span className="text-center">PF</span>
                   <span className="text-center">Diff</span>
                 </div>
-                {standings.map((s, i) => (
-                  <div key={s.teamId} className={`grid grid-cols-5 gap-2 rounded-lg p-2 ${i < 2 ? 'bg-[#e94560]/10 border border-[#e94560]/20' : 'bg-white/5'}`}>
-                    <span className="font-semibold text-white truncate">{s.teamName}</span>
-                    <span className="text-center text-gray-400">{s.played}</span>
-                    <span className="text-center text-[#e94560]">{s.wins}</span>
-                    <span className="text-center text-gray-400">{s.pointsFor}</span>
-                    <span className="text-center text-gray-400">
-                      {s.diff > 0 ? `+${s.diff}` : s.diff}
-                    </span>
-                  </div>
-                ))}
+                {standings.flatMap((s, i) => {
+                  const items = []
+                  if (showCutLine && i === 4) {
+                    items.push(
+                      <div key="cut" className="flex items-center gap-2 my-1">
+                        <div className="flex-1 h-px bg-[#e94560]/50" />
+                        <span className="text-[10px] font-bold text-[#e94560] tracking-wider">ELIMINADOS</span>
+                        <div className="flex-1 h-px bg-[#e94560]/50" />
+                      </div>
+                    )
+                  }
+                  items.push(
+                    <div key={s.teamId} className={`grid grid-cols-5 gap-2 rounded-lg p-2 ${!showCutLine || i < 4 ? 'bg-[#e94560]/10 border border-[#e94560]/20' : 'bg-white/5 opacity-50'}`}>
+                      <span className="font-semibold text-white truncate">{s.teamName}</span>
+                      <span className="text-center text-gray-400">{s.played}</span>
+                      <span className="text-center text-[#e94560]">{s.wins}</span>
+                      <span className="text-center text-gray-400">{s.pointsFor}</span>
+                      <span className="text-center text-gray-400">{s.diff > 0 ? `+${s.diff}` : s.diff}</span>
+                    </div>
+                  )
+                  return items
+                })}
               </div>
             </div>
           )}
@@ -595,17 +615,28 @@ export default function RefereeDashboard() {
                   <span className="text-center">PF</span>
                   <span className="text-center">Diff</span>
                 </div>
-                {standings.map((s, i) => (
-                  <div key={s.teamId} className={`grid grid-cols-5 gap-2 rounded-lg p-2 ${i < 2 ? 'bg-[#e94560]/10 border border-[#e94560]/20' : 'bg-white/5'}`}>
-                    <span className="font-semibold text-white truncate">{s.teamName}</span>
-                    <span className="text-center text-gray-400">{s.played}</span>
-                    <span className="text-center text-[#e94560]">{s.wins}</span>
-                    <span className="text-center text-gray-400">{s.pointsFor}</span>
-                    <span className="text-center text-gray-400">
-                      {s.diff > 0 ? `+${s.diff}` : s.diff}
-                    </span>
-                  </div>
-                ))}
+                {standings.flatMap((s, i) => {
+                  const items = []
+                  if (showCutLine && i === 4) {
+                    items.push(
+                      <div key="cut" className="flex items-center gap-2 my-1">
+                        <div className="flex-1 h-px bg-[#e94560]/50" />
+                        <span className="text-[10px] font-bold text-[#e94560] tracking-wider">ELIMINADOS</span>
+                        <div className="flex-1 h-px bg-[#e94560]/50" />
+                      </div>
+                    )
+                  }
+                  items.push(
+                    <div key={s.teamId} className={`grid grid-cols-5 gap-2 rounded-lg p-2 ${!showCutLine || i < 4 ? 'bg-[#e94560]/10 border border-[#e94560]/20' : 'bg-white/5 opacity-50'}`}>
+                      <span className="font-semibold text-white truncate">{s.teamName}</span>
+                      <span className="text-center text-gray-400">{s.played}</span>
+                      <span className="text-center text-[#e94560]">{s.wins}</span>
+                      <span className="text-center text-gray-400">{s.pointsFor}</span>
+                      <span className="text-center text-gray-400">{s.diff > 0 ? `+${s.diff}` : s.diff}</span>
+                    </div>
+                  )
+                  return items
+                })}
               </div>
             </div>
           )}
