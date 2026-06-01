@@ -37,6 +37,7 @@ export default function RefereeDashboard() {
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState('')
   const [hasPrefilledSession, setHasPrefilledSession] = useState(false)
+  const [elapsed, setElapsed] = useState(0)
 
   useEffect(() => {
     const params = new URLSearchParams(location.search)
@@ -57,6 +58,21 @@ export default function RefereeDashboard() {
       }
     }
   }, [])
+
+  useEffect(() => {
+    if (!match || match.status !== 'playing' || !match.startedAt) {
+      setElapsed(0)
+      return
+    }
+    setElapsed(Date.now() - match.startedAt)
+    const interval = setInterval(() => setElapsed(Date.now() - match.startedAt), 1000)
+    return () => clearInterval(interval)
+  }, [match?.id, match?.status, match?.startedAt])
+
+  function formatTime(ms) {
+    const s = Math.floor(ms / 1000)
+    return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
+  }
 
   useEffect(() => {
     if (!verifiedSession?.sessionId) return
@@ -194,7 +210,13 @@ export default function RefereeDashboard() {
     }
 
     try {
+      const elapsedMs = match.startedAt ? Date.now() - match.startedAt : 0
       await updateMatchScore(verifiedSession.sessionId, match.id, {
+        scoreA: newScoreA,
+        scoreB: newScoreB,
+      }, {
+        teamId: team === 'A' ? match.teamA : match.teamB,
+        elapsed: elapsedMs,
         scoreA: newScoreA,
         scoreB: newScoreB,
       })
@@ -597,6 +619,24 @@ export default function RefereeDashboard() {
             </div>
           </div>
 
+          {match.pointLog && Object.keys(match.pointLog).length > 0 && (
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">📋 Resumen del partido</p>
+              <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
+                {Object.values(match.pointLog)
+                  .sort((a, b) => a.elapsed - b.elapsed)
+                  .map((entry, i) => (
+                    <div key={i} className="flex items-center justify-between text-xs">
+                      <span className="font-medium text-white">{getTeamName(entry.teamId)} <span className="text-[#e94560]">+1</span></span>
+                      <span className="text-gray-500">{entry.scoreA} – {entry.scoreB}</span>
+                      <span className="font-mono text-gray-500">{formatTime(entry.elapsed)}</span>
+                    </div>
+                  ))
+                }
+              </div>
+            </div>
+          )}
+
           {phase !== 'completed' && (
             <Button onClick={handleNextMatch} disabled={processing}>
               {processing ? 'Cargando...' : '➡️ Siguiente partido'}
@@ -653,6 +693,9 @@ export default function RefereeDashboard() {
           )}
 
           <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+            {/* Timer */}
+            <p className="text-center font-mono text-2xl font-bold text-white mb-4">{formatTime(elapsed)}</p>
+
             <div className="flex items-center justify-between">
               <div className="flex-1 text-center">
                 <p className="text-lg font-bold text-white">{getTeamName(match.teamA)}</p>
@@ -687,6 +730,25 @@ export default function RefereeDashboard() {
           <p className="text-center text-xs text-gray-500">
             Puntos para ganar: {sessionData?.pointsToWin || 15}
           </p>
+
+          {/* Point log */}
+          {match.pointLog && Object.keys(match.pointLog).length > 0 && (
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">📋 Log del partido</p>
+              <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
+                {Object.values(match.pointLog)
+                  .sort((a, b) => b.elapsed - a.elapsed)
+                  .map((entry, i) => (
+                    <div key={i} className="flex items-center justify-between text-xs">
+                      <span className="font-medium text-white">{getTeamName(entry.teamId)} <span className="text-[#e94560]">+1</span></span>
+                      <span className="text-gray-500">{entry.scoreA} – {entry.scoreB}</span>
+                      <span className="font-mono text-gray-500">{formatTime(entry.elapsed)}</span>
+                    </div>
+                  ))
+                }
+              </div>
+            </div>
+          )}
         </div>
       )}
 

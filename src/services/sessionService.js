@@ -703,17 +703,30 @@ export async function createMatch({ sessionId, teamA, teamB }) {
   return matchId
 }
 
-export async function updateMatchScore(sessionId, matchId, { scoreA, scoreB }) {
+export async function updateMatchScore(sessionId, matchId, { scoreA, scoreB }, logEntry = null) {
   const db = getFirebaseDB()
   const session = await getSession(sessionId)
 
+  let matchPath
   if (session?.groupMatches?.[matchId] !== undefined) {
-    await update(ref(db, `sessions/${sessionId}/groupMatches/${matchId}`), { scoreA, scoreB })
+    matchPath = `sessions/${sessionId}/groupMatches/${matchId}`
   } else if (session?.bracket?.[matchId] !== undefined) {
-    await update(ref(db, `sessions/${sessionId}/bracket/${matchId}`), { scoreA, scoreB })
+    matchPath = `sessions/${sessionId}/bracket/${matchId}`
   } else {
-    await update(ref(db, `sessions/${sessionId}/matches/${matchId}`), { scoreA, scoreB })
+    matchPath = `sessions/${sessionId}/matches/${matchId}`
   }
+
+  const updates = {
+    [`${matchPath}/scoreA`]: scoreA,
+    [`${matchPath}/scoreB`]: scoreB,
+  }
+
+  if (logEntry) {
+    const logKey = push(ref(db, `${matchPath}/pointLog`)).key
+    updates[`${matchPath}/pointLog/${logKey}`] = logEntry
+  }
+
+  await update(ref(db), updates)
 }
 
 export async function finishMatch(sessionId, matchId, winnerTeamId) {
