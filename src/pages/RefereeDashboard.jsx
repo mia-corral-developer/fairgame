@@ -495,7 +495,7 @@ export default function RefereeDashboard() {
 
           {isTournament && phase === 'group' && !match && groupMatches.filter((m) => m.status === 'finished').length === 0 && (
             <Button onClick={handleShuffleFixture} disabled={processing} variant="secondary">
-              {processing ? 'Sorteando...' : '🎲 Sortear fixture'}
+              {processing ? 'Sorteando...' : '🎲 Sortear inicio'}
             </Button>
           )}
 

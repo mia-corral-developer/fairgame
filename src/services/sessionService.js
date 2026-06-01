@@ -606,12 +606,19 @@ export async function shuffleGroupMatches(sessionId) {
   if (session.phase !== 'group') throw new Error('Solo se puede sortear en fase de grupos')
   if (session.currentMatch) throw new Error('Termina el partido actual primero')
 
-  const groupMatchesObj = session.groupMatches || {}
+  // Generate matches first if they haven't been created yet
+  let groupMatchesObj = session.groupMatches || {}
+  if (Object.keys(groupMatchesObj).length === 0) {
+    await initGroupMatches(sessionId)
+    const fresh = await getSession(sessionId)
+    groupMatchesObj = fresh.groupMatches || {}
+  }
+
   const entries = Object.entries(groupMatchesObj)
   const played = entries.filter(([, m]) => m.status === 'finished').length
   if (played > 0) throw new Error('No se puede sortear después de iniciar el torneo')
 
-  // Shuffle team pairs across match slots (keys stay the same, Firebase preserves push-key order)
+  // Shuffle team pairs across match slots
   const pairs = entries.map(([, m]) => ({ teamA: m.teamA, teamB: m.teamB }))
   for (let i = pairs.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
