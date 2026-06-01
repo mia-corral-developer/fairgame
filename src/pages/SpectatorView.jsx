@@ -256,11 +256,14 @@ export default function SpectatorView() {
               <span className="text-center">Diff</span>
             </div>
             {(() => {
-              const showCut = teams.length > 4
+              const hasResults = standingsData.some((s) => s.played > 0)
               const standingsData = teams.map((t) => {
                 const s = session?.standings?.[t.id] || { wins: 0, played: 0, pointsFor: 0, pointsAgainst: 0 }
                 return { teamId: t.id, name: getTeamName(t.id), wins: s.wins || 0, played: s.played || 0, pointsFor: s.pointsFor || 0, diff: (s.pointsFor || 0) - (s.pointsAgainst || 0) }
               }).sort((a, b) => b.wins - a.wins || b.diff - a.diff || b.pointsFor - a.pointsFor)
+
+              const hasResults = standingsData.some((s) => s.played > 0)
+              const showCut = teams.length > 4 && hasResults
 
               return standingsData.flatMap((s, i) => {
                 const items = []

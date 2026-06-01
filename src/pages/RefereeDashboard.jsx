@@ -314,7 +314,8 @@ export default function RefereeDashboard() {
   }, {})
 
   const groupByes = sessionData?.groupByes || {}
-  const showCutLine = teams.length > 4
+  const hasResults = standings.some((s) => s.played > 0)
+  const showCutLine = teams.length > 4 && hasResults
 
   // Render login
   if (!verifiedSession) {
