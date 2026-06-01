@@ -656,10 +656,15 @@ export async function createMatch({ sessionId, teamA, teamB }) {
 
 export async function updateMatchScore(sessionId, matchId, { scoreA, scoreB }) {
   const db = getFirebaseDB()
-  await update(ref(db, `sessions/${sessionId}/matches/${matchId}`), {
-    scoreA,
-    scoreB,
-  })
+  const session = await getSession(sessionId)
+
+  if (session?.groupMatches?.[matchId] !== undefined) {
+    await update(ref(db, `sessions/${sessionId}/groupMatches/${matchId}`), { scoreA, scoreB })
+  } else if (session?.bracket?.[matchId] !== undefined) {
+    await update(ref(db, `sessions/${sessionId}/bracket/${matchId}`), { scoreA, scoreB })
+  } else {
+    await update(ref(db, `sessions/${sessionId}/matches/${matchId}`), { scoreA, scoreB })
+  }
 }
 
 export async function finishMatch(sessionId, matchId, winnerTeamId) {
