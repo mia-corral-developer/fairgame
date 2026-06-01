@@ -21,9 +21,25 @@ export default function SpectatorView() {
   const [error, setError] = useState('')
 
   const [selectedTeam, setSelectedTeam] = useState(null)
+  const [elapsed, setElapsed] = useState(0)
 
   const isTournament = session?.mode === 'round-robin'
   const phase = session?.phase || 'group'
+
+  useEffect(() => {
+    if (!match || match.status !== 'playing' || !match.startedAt) {
+      setElapsed(0)
+      return
+    }
+    setElapsed(Date.now() - match.startedAt)
+    const interval = setInterval(() => setElapsed(Date.now() - match.startedAt), 1000)
+    return () => clearInterval(interval)
+  }, [match?.id, match?.status, match?.startedAt])
+
+  function formatTime(ms) {
+    const s = Math.floor(ms / 1000)
+    return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
+  }
 
   // Load session and teams
   useEffect(() => {
@@ -185,25 +201,51 @@ export default function SpectatorView() {
 
       {/* Current Match */}
       {match && (
-        <div className="rounded-2xl border border-[#e94560]/30 bg-[#e94560]/10 p-6">
-          <p className="mb-2 text-center text-xs font-semibold uppercase tracking-wider text-[#e94560]">
-            {match.status === 'finished' ? '🏆 Partido terminado' : 'Partido en curso'}
-          </p>
-          <div className="flex items-center justify-between">
-            <div className="flex-1 text-center">
-              <p className="text-lg font-bold text-white">{getTeamName(match.teamA)}</p>
-              <p className="text-3xl font-black text-white">{match.scoreA || 0}</p>
+        <div className="flex flex-col gap-3">
+          <div className="rounded-2xl border border-[#e94560]/30 bg-[#e94560]/10 p-6">
+            <p className="mb-1 text-center text-xs font-semibold uppercase tracking-wider text-[#e94560]">
+              {match.status === 'finished' ? '🏆 Partido terminado' : '🔴 En curso'}
+            </p>
+            {match.status === 'playing' && (
+              <p className="text-center font-mono text-xl font-bold text-white mb-3">{formatTime(elapsed)}</p>
+            )}
+            <div className="flex items-center justify-between">
+              <div className="flex-1 text-center">
+                <p className="text-lg font-bold text-white">{getTeamName(match.teamA)}</p>
+                <p className="text-4xl font-black text-white">{match.scoreA || 0}</p>
+              </div>
+              <div className="px-4 text-sm text-gray-500">vs</div>
+              <div className="flex-1 text-center">
+                <p className="text-lg font-bold text-[#e94560]">{getTeamName(match.teamB)}</p>
+                <p className="text-4xl font-black text-[#e94560]">{match.scoreB || 0}</p>
+              </div>
             </div>
-            <div className="px-4 text-sm text-gray-500">vs</div>
-            <div className="flex-1 text-center">
-              <p className="text-lg font-bold text-[#e94560]">{getTeamName(match.teamB)}</p>
-              <p className="text-3xl font-black text-[#e94560]">{match.scoreB || 0}</p>
-            </div>
+            {match.status === 'finished' && match.winner && (
+              <div className="mt-4 text-center">
+                <p className="text-sm text-gray-400">Ganador</p>
+                <p className="text-xl font-bold text-[#e94560]">{getTeamName(match.winner)}</p>
+              </div>
+            )}
           </div>
-          {match.status === 'finished' && match.winner && (
-            <div className="mt-4 text-center">
-              <p className="text-sm text-gray-400">Ganador</p>
-              <p className="text-xl font-bold text-[#e94560]">{getTeamName(match.winner)}</p>
+
+          {/* Point log */}
+          {match.pointLog && Object.keys(match.pointLog).length > 0 && (
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
+                {match.status === 'finished' ? '📋 Minuto a minuto' : '📋 En vivo'}
+              </p>
+              <div className="flex flex-col gap-1 max-h-52 overflow-y-auto">
+                {Object.values(match.pointLog)
+                  .sort((a, b) => match.status === 'finished' ? a.elapsed - b.elapsed : b.elapsed - a.elapsed)
+                  .map((entry, i) => (
+                    <div key={i} className="flex items-center justify-between text-xs py-0.5 border-b border-white/5 last:border-0">
+                      <span className="font-mono text-gray-500 w-10">{formatTime(entry.elapsed)}</span>
+                      <span className="flex-1 px-2 font-medium text-white">{getTeamName(entry.teamId)} <span className="text-[#e94560]">+1</span></span>
+                      <span className="text-gray-400 font-mono">{entry.scoreA} – {entry.scoreB}</span>
+                    </div>
+                  ))
+                }
+              </div>
             </div>
           )}
         </div>
