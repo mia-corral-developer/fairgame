@@ -21,7 +21,7 @@ export default function Home() {
           <p className="text-lg font-bold text-white">{sessionData.name}</p>
           <p className="text-xs text-gray-500">Código: {sessionData.code}</p>
           <div className="mt-3 flex gap-2">
-            <Button variant="secondary" className="flex-1 text-sm" onClick={() => navigate('/referee')}>
+            <Button variant="secondary" className="flex-1 text-sm" onClick={() => navigate(`/referee?session=${sessionData.code}`)}>
               Panel árbitro
             </Button>
             <Button variant="outline" className="flex-1 text-sm" onClick={clearSession}>
@@ -32,14 +32,11 @@ export default function Home() {
       )}
 
       <div className="flex w-full flex-col gap-4">
-        <Button onClick={() => navigate('/create')}>
-          🎮 Crear campeonato
-        </Button>
-        <Button variant="secondary" onClick={() => navigate('/join')}>
-          👥 Crear equipo
-        </Button>
-        <Button variant="outline" onClick={() => navigate('/sessions')}>
+        <Button onClick={() => navigate('/sessions')}>
           🏆 Ver campeonatos activos
+        </Button>
+        <Button variant="secondary" onClick={() => navigate('/create')}>
+          🎮 Crear campeonato
         </Button>
         <Button variant="outline" onClick={() => navigate('/rules')}>
           📋 Ver reglas

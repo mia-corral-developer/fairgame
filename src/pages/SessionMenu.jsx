@@ -93,15 +93,11 @@ export default function SessionMenu() {
 
         <Button
           variant="outline"
-          onClick={() => navigate('/referee')}
+          onClick={() => navigate(`/referee?session=${session.code}`)}
         >
           ⚖️ Panel de árbitro
         </Button>
       </div>
-
-      <p className="text-center text-xs text-gray-500">
-        Para acceder como árbitro necesitas el código de 4 dígitos del organizador
-      </p>
     </div>
   )
 }
