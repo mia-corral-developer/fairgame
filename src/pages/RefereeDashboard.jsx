@@ -453,9 +453,14 @@ export default function RefereeDashboard() {
                         <span className={`flex-1 text-right font-medium ${m.status === 'finished' && m.winner === m.teamA ? 'text-white' : 'text-gray-400'}`}>
                           {getTeamName(m.teamA)}
                         </span>
-                        <span className="text-xs text-gray-500 w-10 text-center">
-                          {m.status === 'finished' ? `${m.scoreA}-${m.scoreB}` : 'vs'}
-                        </span>
+                        <div className="w-14 text-center">
+                          <span className="text-xs text-gray-500">
+                            {m.status === 'finished' ? `${m.scoreA}-${m.scoreB}` : 'vs'}
+                          </span>
+                          {m.status === 'finished' && m.startedAt && m.finishedAt && (
+                            <p className="text-[10px] text-gray-600">{formatTime(m.finishedAt - m.startedAt)}</p>
+                          )}
+                        </div>
                         <span className={`flex-1 font-medium ${m.status === 'finished' && m.winner === m.teamB ? 'text-white' : 'text-gray-400'}`}>
                           {getTeamName(m.teamB)}
                         </span>
@@ -616,6 +621,11 @@ export default function RefereeDashboard() {
               <p className="text-2xl font-black text-[#e94560]">
                 {getTeamName(match.winner)}
               </p>
+              {match.startedAt && match.finishedAt && (
+                <p className="mt-2 text-xs text-gray-500">
+                  ⏱ Duración: {formatTime(match.finishedAt - match.startedAt)}
+                </p>
+              )}
             </div>
           </div>
 

@@ -224,6 +224,9 @@ export default function SpectatorView() {
               <div className="mt-4 text-center">
                 <p className="text-sm text-gray-400">Ganador</p>
                 <p className="text-xl font-bold text-[#e94560]">{getTeamName(match.winner)}</p>
+                {match.startedAt && match.finishedAt && (
+                  <p className="mt-1 text-xs text-gray-500">⏱ {formatTime(match.finishedAt - match.startedAt)}</p>
+                )}
               </div>
             )}
           </div>
@@ -364,9 +367,14 @@ export default function SpectatorView() {
                         <span className={`flex-1 text-right font-medium ${m.status === 'finished' && m.winner === m.teamA ? 'text-white' : 'text-gray-400'}`}>
                           {getTeamName(m.teamA)}
                         </span>
-                        <span className="text-xs text-gray-500 w-10 text-center">
-                          {m.status === 'finished' ? `${m.scoreA}-${m.scoreB}` : 'vs'}
-                        </span>
+                        <div className="w-14 text-center">
+                          <span className="text-xs text-gray-500">
+                            {m.status === 'finished' ? `${m.scoreA}-${m.scoreB}` : 'vs'}
+                          </span>
+                          {m.status === 'finished' && m.startedAt && m.finishedAt && (
+                            <p className="text-[10px] text-gray-600">{formatTime(m.finishedAt - m.startedAt)}</p>
+                          )}
+                        </div>
                         <span className={`flex-1 font-medium ${m.status === 'finished' && m.winner === m.teamB ? 'text-white' : 'text-gray-400'}`}>
                           {getTeamName(m.teamB)}
                         </span>
