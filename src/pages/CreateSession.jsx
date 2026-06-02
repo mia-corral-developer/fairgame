@@ -5,11 +5,21 @@ import { useSessionContext } from '../contexts/SessionContext'
 import Button from '../components/common/Button'
 import Input from '../components/common/Input'
 
+const SETS_OPTIONS = [
+  { value: 1, label: '1 set' },
+  { value: 2, label: 'Mejor de 3' },
+  { value: 3, label: 'Mejor de 5' },
+]
+
+const POINTS_OPTIONS = [15, 21, 25, 30]
+
 export default function CreateSession() {
   const navigate = useNavigate()
   const { joinSession, setReferee } = useSessionContext()
   const [name, setName] = useState('')
   const [mode, setMode] = useState('queue')
+  const [setsToWin, setSetsToWin] = useState(1)
+  const [pointsPerSet, setPointsPerSet] = useState(25)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -23,10 +33,10 @@ export default function CreateSession() {
     setError('')
 
     try {
-      const { sessionId, code, refereeCode } = await createSession({ name, mode })
+      const { sessionId, code, refereeCode } = await createSession({ name, mode, setsToWin, pointsPerSet })
       joinSession(sessionId)
       setReferee(true)
-      navigate('/share', { state: { code, name, mode, refereeCode } })
+      navigate('/share', { state: { code, name, mode, refereeCode, setsToWin, pointsPerSet } })
     } catch (err) {
       setError('Error al crear la sesión. Intenta de nuevo.')
       console.error(err)
@@ -34,6 +44,8 @@ export default function CreateSession() {
       setLoading(false)
     }
   }
+
+  const setsLabel = setsToWin === 1 ? '1 set' : `Mejor de ${setsToWin * 2 - 1} (ganar ${setsToWin})`
 
   return (
     <div className="flex flex-col gap-6 pt-4">
@@ -58,22 +70,65 @@ export default function CreateSession() {
           className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-[#e94560] focus:ring-1 focus:ring-[#e94560]/50"
         >
           <option value="queue" className="bg-[#1a1a2e]">Cola clásica</option>
-          <option value="round-robin" className="bg-[#1a1a2e]">Todos contra todos (4 equipos)</option>
+          <option value="round-robin" className="bg-[#1a1a2e]">Todos contra todos</option>
         </select>
       </label>
 
-      {mode === 'round-robin' && (
-        <div className="rounded-xl border border-[#e94560]/20 bg-[#e94560]/10 p-4 text-sm">
-          <p className="font-semibold text-[#e94560] mb-2">🏆 Torneo Todos contra todos</p>
-          <ul className="flex flex-col gap-1 text-gray-300">
-            <li>• Exactamente 4 equipos</li>
-            <li>• Fase de grupos: todos vs todos (6 partidos)</li>
-            <li>• <span className="text-[#e94560] font-bold">30 puntos</span> para ganar cada partido</li>
-            <li>• Semifinales: 1° vs 4°, 2° vs 3°</li>
-            <li>• Final: ganadores de semifinales</li>
-          </ul>
+      {/* Sets por partido */}
+      <div className="flex flex-col gap-2">
+        <span className="text-sm font-medium text-gray-300">Sets por partido</span>
+        <div className="grid grid-cols-3 gap-2">
+          {SETS_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setSetsToWin(opt.value)}
+              className={`rounded-xl py-2.5 text-sm font-medium transition-colors cursor-pointer ${
+                setsToWin === opt.value
+                  ? 'bg-[#e94560] text-white'
+                  : 'border border-white/10 bg-white/5 text-gray-400 hover:border-white/20'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
-      )}
+      </div>
+
+      {/* Puntos por set */}
+      <div className="flex flex-col gap-2">
+        <span className="text-sm font-medium text-gray-300">Puntos por set</span>
+        <div className="grid grid-cols-4 gap-2">
+          {POINTS_OPTIONS.map((pts) => (
+            <button
+              key={pts}
+              onClick={() => setPointsPerSet(pts)}
+              className={`rounded-xl py-2.5 text-sm font-medium transition-colors cursor-pointer ${
+                pointsPerSet === pts
+                  ? 'bg-[#e94560] text-white'
+                  : 'border border-white/10 bg-white/5 text-gray-400 hover:border-white/20'
+              }`}
+            >
+              {pts}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Resumen de configuración */}
+      <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-gray-400">
+        <p className="font-medium text-white mb-1">Configuración del partido</p>
+        <p>• {setsLabel}</p>
+        <p>• {pointsPerSet} puntos para ganar cada set</p>
+        {mode === 'round-robin' && (
+          <>
+            <p>• Fase de grupos: todos vs todos</p>
+            <p>• Clasifican los 4 mejores → Semifinales → Final</p>
+          </>
+        )}
+        {mode === 'queue' && (
+          <p>• El ganador se queda, el perdedor va al final de la cola</p>
+        )}
+      </div>
 
       {error && <p className="text-sm text-red-400">{error}</p>}
 

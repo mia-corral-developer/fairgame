@@ -36,7 +36,7 @@ function getMaxConsecutiveWins(teamCount) {
   return teamCount <= 4 ? 2 : 3
 }
 
-export async function createSession({ name, mode }) {
+export async function createSession({ name, mode, setsToWin = 1, pointsPerSet = 25 }) {
   const db = getFirebaseDB()
   const sessionRef = push(ref(db, 'sessions'))
   const sessionId = sessionRef.key
@@ -55,9 +55,10 @@ export async function createSession({ name, mode }) {
     teamCount: 0,
     currentMatch: null,
     queue: [],
+    setsToWin,
+    pointsPerSet,
     // Tournament-specific fields (round-robin only)
     phase: isRoundRobin ? 'group' : undefined,
-    pointsToWin: isRoundRobin ? 30 : undefined,
     groupMatches: isRoundRobin ? {} : undefined,
     bracket: isRoundRobin ? {} : undefined,
     standings: {},
@@ -115,9 +116,7 @@ export async function addTeamToSession(sessionId, teamId) {
     teamCount: newCount,
   }
 
-  // Only update dynamic points for queue mode
   if (session?.mode === 'queue') {
-    updates.pointsToWin = getPointsToWin(newCount, 'queue')
     updates.maxConsecutiveWins = getMaxConsecutiveWins(newCount)
     updates.queue = [...(session.queue || []), teamId]
   }
@@ -626,6 +625,40 @@ export async function transitionToFinal(sessionId) {
     phase: 'final',
     'bracket/final': final,
   })
+}
+
+/**
+ * Record a completed set without finishing the match.
+ * Resets current set scores, increments setsA/B, saves set history.
+ */
+export async function recordSetResult(sessionId, matchId, { setScoreA, setScoreB, newSetsA, newSetsB, logEntry }) {
+  const db = getFirebaseDB()
+  const session = await getSession(sessionId)
+
+  let matchPath
+  if (session?.groupMatches?.[matchId] !== undefined) {
+    matchPath = `sessions/${sessionId}/groupMatches/${matchId}`
+  } else if (session?.bracket?.[matchId] !== undefined) {
+    matchPath = `sessions/${sessionId}/bracket/${matchId}`
+  } else {
+    matchPath = `sessions/${sessionId}/matches/${matchId}`
+  }
+
+  const setNum = newSetsA + newSetsB
+  const updates = {
+    [`${matchPath}/scoreA`]: 0,
+    [`${matchPath}/scoreB`]: 0,
+    [`${matchPath}/setsA`]: newSetsA,
+    [`${matchPath}/setsB`]: newSetsB,
+    [`${matchPath}/setHistory/${setNum}`]: { scoreA: setScoreA, scoreB: setScoreB },
+  }
+
+  if (logEntry) {
+    const logKey = push(ref(db, `${matchPath}/pointLog`)).key
+    updates[`${matchPath}/pointLog/${logKey}`] = logEntry
+  }
+
+  await update(ref(db), updates)
 }
 
 /**

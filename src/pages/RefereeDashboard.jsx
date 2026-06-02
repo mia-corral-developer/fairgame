@@ -17,6 +17,7 @@ import {
   finishGroupMatch,
   finishKnockoutMatch,
   shuffleGroupMatches,
+  recordSetResult,
 } from '../services/sessionService'
 import Button from '../components/common/Button'
 import Input from '../components/common/Input'
@@ -196,59 +197,70 @@ export default function RefereeDashboard() {
   async function addPoint(team) {
     if (!match || match.status !== 'playing' || processing) return
 
+    const pointsPerSet = sessionData?.pointsPerSet || sessionData?.pointsToWin || 25
+    const setsToWin = sessionData?.setsToWin || 1
+
     const newScoreA = team === 'A' ? scoreA + 1 : scoreA
     const newScoreB = team === 'B' ? scoreB + 1 : scoreB
 
     setScoreA(newScoreA)
     setScoreB(newScoreB)
 
-    const pointsToWin = sessionData?.pointsToWin || 15
-    const isWin = newScoreA >= pointsToWin || newScoreB >= pointsToWin
+    const isSetWin = newScoreA >= pointsPerSet || newScoreB >= pointsPerSet
+    if (isSetWin) setProcessing(true)
 
-    if (isWin) {
-      setProcessing(true)
+    const elapsedMs = match.startedAt ? Date.now() - match.startedAt : 0
+    const logEntry = {
+      teamId: team === 'A' ? match.teamA : match.teamB,
+      elapsed: elapsedMs,
+      scoreA: newScoreA,
+      scoreB: newScoreB,
     }
 
     try {
-      const elapsedMs = match.startedAt ? Date.now() - match.startedAt : 0
-      await updateMatchScore(verifiedSession.sessionId, match.id, {
-        scoreA: newScoreA,
-        scoreB: newScoreB,
-      }, {
-        teamId: team === 'A' ? match.teamA : match.teamB,
-        elapsed: elapsedMs,
-        scoreA: newScoreA,
-        scoreB: newScoreB,
-      })
+      if (!isSetWin) {
+        await updateMatchScore(verifiedSession.sessionId, match.id, { scoreA: newScoreA, scoreB: newScoreB }, logEntry)
+        return
+      }
 
-      if (isWin) {
-        const winner = newScoreA > newScoreB ? match.teamA : match.teamB
-        const loser = winner === match.teamA ? match.teamB : match.teamA
-        const isTournament = sessionData?.mode === 'round-robin'
-        const phase = sessionData?.phase
+      // Set finished
+      const setWinnerTeam = newScoreA > newScoreB ? 'A' : 'B'
+      const newSetsA = (match.setsA || 0) + (setWinnerTeam === 'A' ? 1 : 0)
+      const newSetsB = (match.setsB || 0) + (setWinnerTeam === 'B' ? 1 : 0)
+      const isMatchWin = newSetsA >= setsToWin || newSetsB >= setsToWin
 
-        if (isTournament) {
-          if (phase === 'group') {
-            await finishGroupMatch(
-              verifiedSession.sessionId,
-              match.id,
-              winner,
-              newScoreA,
-              newScoreB
-            )
-          } else if (phase === 'semifinals' || phase === 'final') {
-            await finishKnockoutMatch(
-              verifiedSession.sessionId,
-              match.id,
-              winner,
-              newScoreA,
-              newScoreB
-            )
-          }
-        } else {
-          await finishMatch(verifiedSession.sessionId, match.id, winner)
-          await rotateQueue(verifiedSession.sessionId, winner, loser)
+      if (!isMatchWin) {
+        // Set done, match continues
+        await recordSetResult(verifiedSession.sessionId, match.id, {
+          setScoreA: newScoreA,
+          setScoreB: newScoreB,
+          newSetsA,
+          newSetsB,
+          logEntry,
+        })
+        setScoreA(0)
+        setScoreB(0)
+        setProcessing(false)
+        return
+      }
+
+      // Match finished — save last set score then finish
+      await updateMatchScore(verifiedSession.sessionId, match.id, { scoreA: newScoreA, scoreB: newScoreB }, logEntry)
+
+      const winner = newSetsA >= setsToWin ? match.teamA : match.teamB
+      const loser = winner === match.teamA ? match.teamB : match.teamA
+      const isTournament = sessionData?.mode === 'round-robin'
+      const phase = sessionData?.phase
+
+      if (isTournament) {
+        if (phase === 'group') {
+          await finishGroupMatch(verifiedSession.sessionId, match.id, winner, newSetsA, newSetsB)
+        } else if (phase === 'semifinals' || phase === 'final') {
+          await finishKnockoutMatch(verifiedSession.sessionId, match.id, winner, newSetsA, newSetsB)
         }
+      } else {
+        await finishMatch(verifiedSession.sessionId, match.id, winner)
+        await rotateQueue(verifiedSession.sessionId, winner, loser)
       }
     } catch (err) {
       setError('Error al registrar punto')
@@ -605,14 +617,32 @@ export default function RefereeDashboard() {
             <div className="mt-4 flex items-center justify-between">
               <div className="flex-1 text-center">
                 <p className="text-lg font-bold text-white">{getTeamName(match.teamA)}</p>
-                <p className="text-5xl font-black text-white">{scoreA}</p>
+                {(sessionData?.setsToWin || 1) > 1
+                  ? <p className="text-5xl font-black text-white">{match.setsA || 0}</p>
+                  : <p className="text-5xl font-black text-white">{scoreA}</p>
+                }
+                {(sessionData?.setsToWin || 1) > 1 && <p className="text-xs text-gray-500">sets</p>}
               </div>
               <div className="px-4 text-sm text-gray-500">vs</div>
               <div className="flex-1 text-center">
                 <p className="text-lg font-bold text-[#e94560]">{getTeamName(match.teamB)}</p>
-                <p className="text-5xl font-black text-[#e94560]">{scoreB}</p>
+                {(sessionData?.setsToWin || 1) > 1
+                  ? <p className="text-5xl font-black text-[#e94560]">{match.setsB || 0}</p>
+                  : <p className="text-5xl font-black text-[#e94560]">{scoreB}</p>
+                }
+                {(sessionData?.setsToWin || 1) > 1 && <p className="text-xs text-gray-500">sets</p>}
               </div>
             </div>
+            {(sessionData?.setsToWin || 1) > 1 && match.setHistory && Object.keys(match.setHistory).length > 0 && (
+              <div className="mt-3 flex gap-2 justify-center">
+                {Object.values(match.setHistory).map((s, i) => (
+                  <div key={i} className="rounded-lg bg-white/10 px-2 py-1 text-center">
+                    <p className="text-[10px] text-gray-500">Set {i + 1}</p>
+                    <p className="text-xs font-bold text-white">{s.scoreA}–{s.scoreB}</p>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="mt-6 rounded-xl bg-white/10 p-4">
               <p className="text-sm text-gray-400">
@@ -702,44 +732,73 @@ export default function RefereeDashboard() {
             </div>
           )}
 
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-            {/* Timer */}
-            <p className="text-center font-mono text-2xl font-bold text-white mb-4">{formatTime(elapsed)}</p>
+          {(() => {
+            const setsToWin = sessionData?.setsToWin || 1
+            const pointsPerSet = sessionData?.pointsPerSet || sessionData?.pointsToWin || 25
+            const setsA = match.setsA || 0
+            const setsB = match.setsB || 0
+            const currentSet = setsA + setsB + 1
+            const totalSets = setsToWin * 2 - 1
+            const isMultiSet = setsToWin > 1
 
-            <div className="flex items-center justify-between">
-              <div className="flex-1 text-center">
-                <p className="text-lg font-bold text-white">{getTeamName(match.teamA)}</p>
-                <p className="text-5xl font-black text-white">{scoreA}</p>
-                <button
-                  onClick={() => addPoint('A')}
-                  disabled={processing}
-                  className="mt-2 rounded-xl bg-[#e94560] px-4 py-2 text-sm font-semibold text-white hover:brightness-110 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  +1
-                </button>
+            return (
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+                {/* Timer + set info */}
+                <div className="text-center mb-4">
+                  <p className="font-mono text-2xl font-bold text-white">{formatTime(elapsed)}</p>
+                  {isMultiSet && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Set {currentSet} de {totalSets}
+                      {(setsA > 0 || setsB > 0) && ` · Sets: ${setsA} – ${setsB}`}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 text-center">
+                    <p className="text-lg font-bold text-white">{getTeamName(match.teamA)}</p>
+                    <p className="text-5xl font-black text-white">{scoreA}</p>
+                    <button
+                      onClick={() => addPoint('A')}
+                      disabled={processing}
+                      className="mt-2 rounded-xl bg-[#e94560] px-4 py-2 text-sm font-semibold text-white hover:brightness-110 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >+1</button>
+                  </div>
+
+                  <div className="px-4 text-center">
+                    <p className="text-sm text-gray-500">vs</p>
+                  </div>
+
+                  <div className="flex-1 text-center">
+                    <p className="text-lg font-bold text-[#e94560]">{getTeamName(match.teamB)}</p>
+                    <p className="text-5xl font-black text-[#e94560]">{scoreB}</p>
+                    <button
+                      onClick={() => addPoint('B')}
+                      disabled={processing}
+                      className="mt-2 rounded-xl bg-[#0f3460] px-4 py-2 text-sm font-semibold text-white hover:brightness-110 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >+1</button>
+                  </div>
+                </div>
+
+                <p className="text-center text-xs text-gray-500 mt-3">
+                  {pointsPerSet} puntos por set
+                  {isMultiSet && ` · ganar ${setsToWin} sets`}
+                </p>
+
+                {/* Set history */}
+                {isMultiSet && match.setHistory && Object.keys(match.setHistory).length > 0 && (
+                  <div className="mt-3 flex gap-2 justify-center">
+                    {Object.values(match.setHistory).map((s, i) => (
+                      <div key={i} className="rounded-lg bg-white/10 px-2 py-1 text-center">
+                        <p className="text-[10px] text-gray-500">Set {i + 1}</p>
+                        <p className="text-xs font-bold text-white">{s.scoreA}–{s.scoreB}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-
-              <div className="px-4 text-center">
-                <p className="text-sm text-gray-500">vs</p>
-              </div>
-
-              <div className="flex-1 text-center">
-                <p className="text-lg font-bold text-[#e94560]">{getTeamName(match.teamB)}</p>
-                <p className="text-5xl font-black text-[#e94560]">{scoreB}</p>
-                <button
-                  onClick={() => addPoint('B')}
-                  disabled={processing}
-                  className="mt-2 rounded-xl bg-[#0f3460] px-4 py-2 text-sm font-semibold text-white hover:brightness-110 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  +1
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <p className="text-center text-xs text-gray-500">
-            Puntos para ganar: {sessionData?.pointsToWin || 15}
-          </p>
+            )
+          })()}
 
           {/* Point log */}
           {match.pointLog && Object.keys(match.pointLog).length > 0 && (

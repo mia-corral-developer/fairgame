@@ -206,29 +206,69 @@ export default function SpectatorView() {
             <p className="mb-1 text-center text-xs font-semibold uppercase tracking-wider text-[#e94560]">
               {match.status === 'finished' ? '🏆 Partido terminado' : '🔴 En curso'}
             </p>
-            {match.status === 'playing' && (
-              <p className="text-center font-mono text-xl font-bold text-white mb-3">{formatTime(elapsed)}</p>
-            )}
-            <div className="flex items-center justify-between">
-              <div className="flex-1 text-center">
-                <p className="text-lg font-bold text-white">{getTeamName(match.teamA)}</p>
-                <p className="text-4xl font-black text-white">{match.scoreA || 0}</p>
-              </div>
-              <div className="px-4 text-sm text-gray-500">vs</div>
-              <div className="flex-1 text-center">
-                <p className="text-lg font-bold text-[#e94560]">{getTeamName(match.teamB)}</p>
-                <p className="text-4xl font-black text-[#e94560]">{match.scoreB || 0}</p>
-              </div>
-            </div>
-            {match.status === 'finished' && match.winner && (
-              <div className="mt-4 text-center">
-                <p className="text-sm text-gray-400">Ganador</p>
-                <p className="text-xl font-bold text-[#e94560]">{getTeamName(match.winner)}</p>
-                {match.startedAt && match.finishedAt && (
-                  <p className="mt-1 text-xs text-gray-500">⏱ {formatTime(match.finishedAt - match.startedAt)}</p>
-                )}
-              </div>
-            )}
+            {(() => {
+              const setsToWin = session?.setsToWin || 1
+              const isMultiSet = setsToWin > 1
+              const setsA = match.setsA || 0
+              const setsB = match.setsB || 0
+              const currentSet = setsA + setsB + 1
+              const totalSets = setsToWin * 2 - 1
+
+              return (
+                <>
+                  {match.status === 'playing' && (
+                    <div className="text-center mb-3">
+                      <p className="font-mono text-xl font-bold text-white">{formatTime(elapsed)}</p>
+                      {isMultiSet && (
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Set {currentSet} de {totalSets}
+                          {(setsA > 0 || setsB > 0) && ` · Sets: ${setsA} – ${setsB}`}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 text-center">
+                      <p className="text-lg font-bold text-white">{getTeamName(match.teamA)}</p>
+                      <p className="text-4xl font-black text-white">
+                        {match.status === 'finished' && isMultiSet ? setsA : (match.scoreA || 0)}
+                      </p>
+                      {match.status === 'finished' && isMultiSet && <p className="text-xs text-gray-500">sets</p>}
+                    </div>
+                    <div className="px-4 text-sm text-gray-500">vs</div>
+                    <div className="flex-1 text-center">
+                      <p className="text-lg font-bold text-[#e94560]">{getTeamName(match.teamB)}</p>
+                      <p className="text-4xl font-black text-[#e94560]">
+                        {match.status === 'finished' && isMultiSet ? setsB : (match.scoreB || 0)}
+                      </p>
+                      {match.status === 'finished' && isMultiSet && <p className="text-xs text-gray-500">sets</p>}
+                    </div>
+                  </div>
+
+                  {isMultiSet && match.setHistory && Object.keys(match.setHistory).length > 0 && (
+                    <div className="mt-3 flex gap-2 justify-center">
+                      {Object.values(match.setHistory).map((s, i) => (
+                        <div key={i} className="rounded-lg bg-white/10 px-2 py-1 text-center">
+                          <p className="text-[10px] text-gray-500">Set {i + 1}</p>
+                          <p className="text-xs font-bold text-white">{s.scoreA}–{s.scoreB}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {match.status === 'finished' && match.winner && (
+                    <div className="mt-4 text-center">
+                      <p className="text-sm text-gray-400">Ganador</p>
+                      <p className="text-xl font-bold text-[#e94560]">{getTeamName(match.winner)}</p>
+                      {match.startedAt && match.finishedAt && (
+                        <p className="mt-1 text-xs text-gray-500">⏱ {formatTime(match.finishedAt - match.startedAt)}</p>
+                      )}
+                    </div>
+                  )}
+                </>
+              )
+            })()}
           </div>
 
           {/* Point log */}
