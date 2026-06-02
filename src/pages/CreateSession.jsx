@@ -5,38 +5,43 @@ import { useSessionContext } from '../contexts/SessionContext'
 import Button from '../components/common/Button'
 import Input from '../components/common/Input'
 
-const SETS_OPTIONS = [
-  { value: 1, label: '1 set' },
-  { value: 2, label: 'Mejor de 3' },
-  { value: 3, label: 'Mejor de 5' },
-]
-
-const POINTS_OPTIONS = [15, 21, 25, 30]
-
 export default function CreateSession() {
   const navigate = useNavigate()
   const { joinSession, setReferee } = useSessionContext()
   const [name, setName] = useState('')
   const [mode, setMode] = useState('queue')
-  const [setsToWin, setSetsToWin] = useState(1)
-  const [pointsPerSet, setPointsPerSet] = useState(25)
+  const [setsToWin, setSetsToWin] = useState('1')
+  const [pointsPerSet, setPointsPerSet] = useState('25')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  function handleSetsChange(e) {
+    const val = e.target.value.replace(/\D/g, '')
+    setSetsToWin(val)
+  }
+
+  function handlePointsChange(e) {
+    const val = e.target.value.replace(/\D/g, '')
+    setPointsPerSet(val)
+  }
+
   async function handleCreate() {
-    if (!name.trim()) {
-      setError('Ingresa un nombre para el campeonato')
-      return
-    }
+    if (!name.trim()) { setError('Ingresa un nombre para el campeonato'); return }
+
+    const sets = parseInt(setsToWin) || 0
+    const points = parseInt(pointsPerSet) || 0
+
+    if (sets < 1) { setError('Sets por partido debe ser al menos 1'); return }
+    if (points < 1) { setError('Puntos por set debe ser al menos 1'); return }
 
     setLoading(true)
     setError('')
 
     try {
-      const { sessionId, code, refereeCode } = await createSession({ name, mode, setsToWin, pointsPerSet })
+      const { sessionId, code, refereeCode } = await createSession({ name, mode, setsToWin: sets, pointsPerSet: points })
       joinSession(sessionId)
       setReferee(true)
-      navigate('/share', { state: { code, name, mode, refereeCode, setsToWin, pointsPerSet } })
+      navigate('/share', { state: { code, name, mode, refereeCode, setsToWin: sets, pointsPerSet: points } })
     } catch (err) {
       setError('Error al crear la sesión. Intenta de nuevo.')
       console.error(err)
@@ -45,7 +50,9 @@ export default function CreateSession() {
     }
   }
 
-  const setsLabel = setsToWin === 1 ? '1 set' : `Mejor de ${setsToWin * 2 - 1} (ganar ${setsToWin})`
+  const sets = parseInt(setsToWin) || 1
+  const points = parseInt(pointsPerSet) || 25
+  const setsLabel = sets === 1 ? '1 set' : `Mejor de ${sets * 2 - 1} — ganar ${sets} sets`
 
   return (
     <div className="flex flex-col gap-6 pt-4">
@@ -74,60 +81,30 @@ export default function CreateSession() {
         </select>
       </label>
 
-      {/* Sets por partido */}
-      <div className="flex flex-col gap-2">
-        <span className="text-sm font-medium text-gray-300">Sets por partido</span>
-        <div className="grid grid-cols-3 gap-2">
-          {SETS_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => setSetsToWin(opt.value)}
-              className={`rounded-xl py-2.5 text-sm font-medium transition-colors cursor-pointer ${
-                setsToWin === opt.value
-                  ? 'bg-[#e94560] text-white'
-                  : 'border border-white/10 bg-white/5 text-gray-400 hover:border-white/20'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
+      <div className="grid grid-cols-2 gap-4">
+        <Input
+          label="Sets para ganar"
+          value={setsToWin}
+          onChange={handleSetsChange}
+          placeholder="Ej: 1"
+          inputMode="numeric"
+        />
+        <Input
+          label="Puntos por set"
+          value={pointsPerSet}
+          onChange={handlePointsChange}
+          placeholder="Ej: 25"
+          inputMode="numeric"
+        />
       </div>
 
-      {/* Puntos por set */}
-      <div className="flex flex-col gap-2">
-        <span className="text-sm font-medium text-gray-300">Puntos por set</span>
-        <div className="grid grid-cols-4 gap-2">
-          {POINTS_OPTIONS.map((pts) => (
-            <button
-              key={pts}
-              onClick={() => setPointsPerSet(pts)}
-              className={`rounded-xl py-2.5 text-sm font-medium transition-colors cursor-pointer ${
-                pointsPerSet === pts
-                  ? 'bg-[#e94560] text-white'
-                  : 'border border-white/10 bg-white/5 text-gray-400 hover:border-white/20'
-              }`}
-            >
-              {pts}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Resumen de configuración */}
+      {/* Resumen */}
       <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-gray-400">
         <p className="font-medium text-white mb-1">Configuración del partido</p>
         <p>• {setsLabel}</p>
-        <p>• {pointsPerSet} puntos para ganar cada set</p>
-        {mode === 'round-robin' && (
-          <>
-            <p>• Fase de grupos: todos vs todos</p>
-            <p>• Clasifican los 4 mejores → Semifinales → Final</p>
-          </>
-        )}
-        {mode === 'queue' && (
-          <p>• El ganador se queda, el perdedor va al final de la cola</p>
-        )}
+        <p>• {points} puntos para ganar cada set</p>
+        {mode === 'round-robin' && <p>• Clasifican los 4 mejores → Semifinales → Final</p>}
+        {mode === 'queue' && <p>• El ganador se queda, el perdedor va al final de la cola</p>}
       </div>
 
       {error && <p className="text-sm text-red-400">{error}</p>}
